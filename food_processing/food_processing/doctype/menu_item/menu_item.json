@@ -1,0 +1,63 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-01-17 12:40:44.037667",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "menu_item_name",
+  "category",
+  "recipe",
+  "provider"
+ ],
+ "fields": [
+  {
+   "fieldname": "menu_item_name",
+   "fieldtype": "Data",
+   "label": "Menu Item Name"
+  },
+  {
+   "fieldname": "category",
+   "fieldtype": "Select",
+   "label": "Category",
+   "options": "\nBREAKFAST\nLUNCH\nDINNER\nSNACK\nDESERT"
+  },
+  {
+   "fieldname": "recipe",
+   "fieldtype": "Link",
+   "label": "Recipe",
+   "options": "Recipe"
+  },
+  {
+   "fieldname": "provider",
+   "fieldtype": "Link",
+   "label": "Provider",
+   "options": "Meal Vendors"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-01-17 13:15:59.094651",
+ "modified_by": "Administrator",
+ "module": "Food Processing",
+ "name": "Menu Item",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

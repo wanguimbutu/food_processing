@@ -5,17 +5,49 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "section_break_l9sf"
+  "customer_name",
+  "no_of_people",
+  "diet",
+  "column_break_lhjf",
+  "no_of_days",
+  "menu_dates"
  ],
  "fields": [
   {
-   "fieldname": "section_break_l9sf",
-   "fieldtype": "Section Break"
+   "fieldname": "customer_name",
+   "fieldtype": "Link",
+   "label": "Customer Name",
+   "options": "Customer"
+  },
+  {
+   "fieldname": "no_of_people",
+   "fieldtype": "Int",
+   "label": "No. of People"
+  },
+  {
+   "fieldname": "column_break_lhjf",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "no_of_days",
+   "fieldtype": "Int",
+   "label": "No. of Days"
+  },
+  {
+   "fieldname": "diet",
+   "fieldtype": "Table MultiSelect",
+   "label": "Diet",
+   "options": "Diet"
+  },
+  {
+   "fieldname": "menu_dates",
+   "fieldtype": "Date",
+   "label": "Menu Dates"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-01-17 12:24:04.365230",
+ "modified": "2025-01-17 13:06:12.654232",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Menu",
