@@ -1,45 +1,44 @@
 {
  "actions": [],
  "allow_rename": 1,
- "creation": "2025-01-17 12:59:20.624062",
+ "creation": "2025-03-06 15:37:17.411951",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "diet_name",
-  "details",
-  "number"
+  "recipe",
+  "recipe_name",
+  "servings"
  ],
  "fields": [
   {
-   "bold": 1,
-   "fieldname": "diet_name",
+   "fieldname": "recipe",
    "fieldtype": "Link",
    "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Diet Name",
-   "options": "Dietary Specifications"
+   "label": "Recipe",
+   "options": "Recipe"
   },
   {
-   "fieldname": "details",
+   "fetch_from": "recipe.recipe_name",
+   "fieldname": "recipe_name",
    "fieldtype": "Data",
-   "label": "Details",
-   "read_only": 1
+   "in_list_view": 1,
+   "label": "Recipe Name"
   },
   {
-   "fieldname": "number",
+   "fieldname": "servings",
    "fieldtype": "Int",
    "in_list_view": 1,
-   "label": "Number"
+   "label": "Servings"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-02-18 11:30:53.363202",
+ "modified": "2025-03-06 15:40:01.635366",
  "modified_by": "Administrator",
  "module": "Food Processing",
- "name": "Diet",
+ "name": "Meal Plan Entry",
  "owner": "Administrator",
  "permissions": [],
  "sort_field": "modified",

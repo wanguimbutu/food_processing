@@ -1,24 +1,211 @@
 {
  "actions": [],
  "allow_rename": 1,
+ "autoname": "field:recipe_name",
  "creation": "2025-01-17 12:25:31.434299",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "section_break_jikc"
+  "recipe_name",
+  "column_break_ojiw",
+  "servings_per_recipe",
+  "section_break_pdvu",
+  "ingredients",
+  "meal_contains_section",
+  "eggs",
+  "beef",
+  "poultry",
+  "fish",
+  "nuts",
+  "column_break_fbpu",
+  "soy",
+  "wheatgluten",
+  "dairy",
+  "shellfish",
+  "meal_category_section",
+  "breakfast",
+  "snack",
+  "appetizer",
+  "lunch",
+  "column_break_mcoe",
+  "dinner",
+  "dessert",
+  "side_dish",
+  "beverage",
+  "other",
+  "section_break_shpu",
+  "recipe_instructions"
  ],
  "fields": [
   {
-   "fieldname": "section_break_jikc",
+   "bold": 1,
+   "fieldname": "recipe_name",
+   "fieldtype": "Data",
+   "label": "Recipe Name",
+   "unique": 1
+  },
+  {
+   "fieldname": "column_break_ojiw",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "servings_per_recipe",
+   "fieldtype": "Int",
+   "label": "Servings Per Recipe"
+  },
+  {
+   "fieldname": "section_break_pdvu",
    "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "ingredients",
+   "fieldtype": "Table",
+   "label": "Ingredients",
+   "options": "Ingredient Details"
+  },
+  {
+   "fieldname": "meal_contains_section",
+   "fieldtype": "Section Break",
+   "label": "Meal Contains"
+  },
+  {
+   "default": "0",
+   "fieldname": "eggs",
+   "fieldtype": "Check",
+   "label": "Eggs"
+  },
+  {
+   "default": "0",
+   "fieldname": "beef",
+   "fieldtype": "Check",
+   "label": "Beef"
+  },
+  {
+   "default": "0",
+   "fieldname": "poultry",
+   "fieldtype": "Check",
+   "label": "Poultry"
+  },
+  {
+   "default": "0",
+   "fieldname": "fish",
+   "fieldtype": "Check",
+   "label": "Fish"
+  },
+  {
+   "default": "0",
+   "fieldname": "nuts",
+   "fieldtype": "Check",
+   "label": "Nuts"
+  },
+  {
+   "fieldname": "column_break_fbpu",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "soy",
+   "fieldtype": "Check",
+   "label": "Soy"
+  },
+  {
+   "default": "0",
+   "fieldname": "wheatgluten",
+   "fieldtype": "Check",
+   "label": "Wheat/Gluten"
+  },
+  {
+   "default": "0",
+   "fieldname": "dairy",
+   "fieldtype": "Check",
+   "label": "Dairy"
+  },
+  {
+   "default": "0",
+   "fieldname": "shellfish",
+   "fieldtype": "Check",
+   "label": "ShellFish"
+  },
+  {
+   "fieldname": "meal_category_section",
+   "fieldtype": "Section Break",
+   "label": "Meal Category"
+  },
+  {
+   "default": "0",
+   "fieldname": "breakfast",
+   "fieldtype": "Check",
+   "label": "Breakfast"
+  },
+  {
+   "default": "0",
+   "fieldname": "snack",
+   "fieldtype": "Check",
+   "label": "Snack"
+  },
+  {
+   "default": "0",
+   "fieldname": "appetizer",
+   "fieldtype": "Check",
+   "label": "Appetizer"
+  },
+  {
+   "default": "0",
+   "fieldname": "lunch",
+   "fieldtype": "Check",
+   "label": "Lunch"
+  },
+  {
+   "fieldname": "column_break_mcoe",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "dinner",
+   "fieldtype": "Check",
+   "label": "Dinner"
+  },
+  {
+   "default": "0",
+   "fieldname": "dessert",
+   "fieldtype": "Check",
+   "label": "Dessert"
+  },
+  {
+   "default": "0",
+   "fieldname": "side_dish",
+   "fieldtype": "Check",
+   "label": "Side Dish"
+  },
+  {
+   "default": "0",
+   "fieldname": "beverage",
+   "fieldtype": "Check",
+   "label": "Beverage"
+  },
+  {
+   "default": "0",
+   "fieldname": "other",
+   "fieldtype": "Check",
+   "label": "Other"
+  },
+  {
+   "fieldname": "section_break_shpu",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "recipe_instructions",
+   "fieldtype": "Small Text",
+   "label": "Recipe Instructions"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-01-17 12:25:31.434299",
+ "modified": "2025-03-04 16:20:29.119599",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Recipe",
+ "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
   {
@@ -36,5 +223,6 @@
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": []
+ "states": [],
+ "track_changes": 1
 }
