@@ -12,7 +12,8 @@ frappe.ui.form.on('Meal Plan', {
             "border": "1px solid #ddd",
             "padding": "10px",
             "margin-bottom": "10px",
-            "background": "#f8f9fa"
+            "background": "#f8f9fa",
+            
         }).text("Drag Recipes Below:");
 
         // Fetch recipes dynamically
@@ -32,9 +33,10 @@ frappe.ui.form.on('Meal Plan', {
                             .css({
                                 "border": "1px solid #ccc",
                                 "padding": "5px",
-                                "margin": "5px 0",
+                                "margin": "15px 15px",
                                 "background-color": "#ffffff",
-                                "cursor": "grab"
+                                "cursor": "grab",
+                                "width": "50%"
                             })
                             .attr("draggable", true);
 

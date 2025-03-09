@@ -6,11 +6,18 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
+  "date",
   "recipe",
   "recipe_name",
-  "servings"
+  "meal_type"
  ],
  "fields": [
+  {
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Date"
+  },
   {
    "fieldname": "recipe",
    "fieldtype": "Link",
@@ -26,16 +33,17 @@
    "label": "Recipe Name"
   },
   {
-   "fieldname": "servings",
-   "fieldtype": "Int",
+   "fieldname": "meal_type",
+   "fieldtype": "Select",
    "in_list_view": 1,
-   "label": "Servings"
+   "label": "Meal Type",
+   "options": "\nBREAKFAST\nLUNCH\nDINNER\nSNACKS\nDESSERT\nBEVERAGES"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-03-06 15:40:01.635366",
+ "modified": "2025-03-07 12:36:52.726269",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Meal Plan Entry",
