@@ -5,17 +5,70 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "section_break_j8de"
+  "meal_id",
+  "meal_name",
+  "column_break_iinm",
+  "meal_category",
+  "section_break_osut",
+  "recipes",
+  "section_break_tkxy",
+  "column_break_flym",
+  "column_break_vssj",
+  "total_meal_cost"
  ],
  "fields": [
   {
-   "fieldname": "section_break_j8de",
+   "fieldname": "meal_id",
+   "fieldtype": "Data",
+   "label": "Meal ID"
+  },
+  {
+   "fieldname": "meal_name",
+   "fieldtype": "Data",
+   "label": "Meal Name"
+  },
+  {
+   "fieldname": "column_break_iinm",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "meal_category",
+   "fieldtype": "Link",
+   "label": "Meal Category",
+   "options": "Meal Category"
+  },
+  {
+   "fieldname": "section_break_osut",
    "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "recipes",
+   "fieldtype": "Table",
+   "label": "Recipes",
+   "options": "Recipe Details"
+  },
+  {
+   "fieldname": "section_break_tkxy",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_flym",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_vssj",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "total_meal_cost",
+   "fieldtype": "Currency",
+   "label": "Total Meal Cost",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-03-10 12:05:01.124916",
+ "modified": "2025-03-10 14:42:49.347968",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Meals",
@@ -36,5 +89,6 @@
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": []
+ "states": [],
+ "track_changes": 1
 }

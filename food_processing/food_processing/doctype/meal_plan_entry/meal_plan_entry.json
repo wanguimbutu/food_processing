@@ -7,8 +7,8 @@
  "engine": "InnoDB",
  "field_order": [
   "date",
-  "recipe",
-  "recipe_name",
+  "meal_id",
+  "meal_name",
   "meal_type"
  ],
  "fields": [
@@ -19,31 +19,31 @@
    "label": "Date"
   },
   {
-   "fieldname": "recipe",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Recipe",
-   "options": "Recipe"
-  },
-  {
-   "fetch_from": "recipe.recipe_name",
-   "fieldname": "recipe_name",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "Recipe Name"
-  },
-  {
    "fieldname": "meal_type",
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Meal Type",
    "options": "\nBREAKFAST\nLUNCH\nDINNER\nSNACKS\nDESSERT\nBEVERAGES"
+  },
+  {
+   "fieldname": "meal_id",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Meal ID",
+   "options": "Meals"
+  },
+  {
+   "fetch_from": "meal_id.meal_name",
+   "fieldname": "meal_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Meal Name"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-03-07 12:36:52.726269",
+ "modified": "2025-03-10 14:50:59.739282",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Meal Plan Entry",

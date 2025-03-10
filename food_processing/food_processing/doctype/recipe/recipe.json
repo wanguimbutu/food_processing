@@ -11,6 +11,7 @@
   "servings_per_recipe",
   "section_break_pdvu",
   "ingredients",
+  "total_cost",
   "meal_contains_section",
   "eggs",
   "beef",
@@ -197,11 +198,17 @@
    "fieldname": "recipe_instructions",
    "fieldtype": "Small Text",
    "label": "Recipe Instructions"
+  },
+  {
+   "fieldname": "total_cost",
+   "fieldtype": "Currency",
+   "label": "Total Cost",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-03-04 16:20:29.119599",
+ "modified": "2025-03-10 12:32:26.815960",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Recipe",

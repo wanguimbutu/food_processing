@@ -1,87 +1,157 @@
 frappe.ui.form.on('Meal Plan', {
     refresh: function(frm) {
-        if (!frm.fields_dict.recipe_list) {
-            return;
-        }
+        setup_meal_drag_and_drop(frm);
+    },
 
-        let recipe_container = $(frm.fields_dict.recipe_list.wrapper);
-        recipe_container.empty(); // Clear previous content
+    start_date: function(frm) {
+        update_meal_dates(frm);
+    },
 
-        // Create a container for draggable recipes
-        let recipeList = $("<div>").css({
-            "border": "1px solid #ddd",
-            "padding": "10px",
-            "margin-bottom": "10px",
-            "background": "#f8f9fa",
-            
-        }).text("Drag Recipes Below:");
-
-        // Fetch recipes dynamically
-        frappe.call({
-            method: "frappe.client.get_list",
-            args: {
-                doctype: "Recipe",
-                fields: ["name", "recipe_name"]
-            },
-            callback: function(response) {
-                if (response.message) {
-                    response.message.forEach(recipe => {
-                        let item = $("<div>")
-                            .text(recipe.recipe_name)
-                            .attr("data-recipe", recipe.name)
-                            .addClass("draggable-recipe")
-                            .css({
-                                "border": "1px solid #ccc",
-                                "padding": "5px",
-                                "margin": "15px 15px",
-                                "background-color": "#ffffff",
-                                "cursor": "grab",
-                                "width": "50%"
-                            })
-                            .attr("draggable", true);
-
-                        // Set drag start event
-                        item.on("dragstart", function(event) {
-                            event.originalEvent.dataTransfer.setData("recipe", $(this).attr("data-recipe"));
-                        });
-
-                        recipeList.append(item);
-                    });
-
-                    recipe_container.append(recipeList);
-                }
-            }
-        });
-
-        // Enable Drag & Drop on the Meal Plan Table
-        let table_wrapper = $(frm.fields_dict.meal_plan_entry.grid.wrapper);
-
-        table_wrapper.on("dragover", function(event) {
-            event.preventDefault();
-        });
-
-        table_wrapper.on("drop", function(event) {
-            event.preventDefault();
-            let recipe_id = event.originalEvent.dataTransfer.getData("recipe");
-
-            if (recipe_id) {
-                frappe.call({
-                    method: "frappe.client.get",
-                    args: {
-                        doctype: "Recipe",
-                        name: recipe_id
-                    },
-                    callback: function(response) {
-                        if (response.message) {
-                            let recipe = response.message;
-                            let row = frm.add_child("meal_plan_entry");
-                            row.recipe = recipe.name;
-                            row.recipe_name = recipe.recipe_name;
-                            frm.refresh_field("meal_plan_entry");
-                        }
-                    }
-                });
-            }
-        });
+    end_date: function(frm) {
+        update_meal_dates(frm);
     }
 });
+
+
+function setup_meal_drag_and_drop(frm) {
+    if (!frm.fields_dict.meal_list) return;
+
+    let meal_container = $(frm.fields_dict.meal_list.wrapper);
+    meal_container.empty();
+
+
+    let mealList = $("<div>").css({
+        "border": "1px solid #ddd",
+        "padding": "10px",
+        "margin-bottom": "10px",
+        "background": "#f8f9fa"
+    }).text("Drag Meals Below:");
+
+
+    frappe.call({
+        method: "frappe.client.get_list",
+        args: {
+            doctype: "Meals",
+            fields: ["name", "meal_name"]
+        },
+        callback: function(response) {
+            if (response.message) {
+                response.message.forEach(meal => {
+                    let item = $("<div>")
+                        .text(meal.meal_name)
+                        .attr("data-meal", meal.name)
+                        .addClass("draggable-meal")
+                        .css({
+                            "border": "1px solid #ccc",
+                            "padding": "5px",
+                            "margin": "5px 0",
+                            "background-color": "#ffffff",
+                            "cursor": "grab",
+                            "width": "50%"
+                        })
+                        .attr("draggable", true);
+
+    
+                    item.on("dragstart", function(event) {
+                        event.originalEvent.dataTransfer.setData("meal", $(this).attr("data-meal"));
+                    });
+
+                    mealList.append(item);
+                });
+
+                meal_container.append(mealList);
+            }
+        }
+    });
+
+    let dropZone = $("<div>")
+        .addClass("meal-drop-zone")
+        .css({
+            "border": "2px dashed #007bff",
+            "padding": "15px",
+            "min-height": "100px",
+            "background": "#e9f5ff",
+            "text-align": "center",
+            "margin-top": "20px"
+        })
+        .text("Drop Meals Here");
+
+    dropZone.on("dragover", function(event) {
+        event.preventDefault();
+    });
+
+    dropZone.on("drop", function(event) {
+        event.preventDefault();
+        let meal_id = event.originalEvent.dataTransfer.getData("meal");
+
+        if (meal_id) {
+        
+            frappe.call({
+                method: "frappe.client.get",
+                args: {
+                    doctype: "Meals",
+                    name: meal_id
+                },
+                callback: function(response) {
+                    if (response.message) {
+                        let meal = response.message;
+                        prompt_for_meal_details(frm, meal);
+                    }
+                }
+            });
+        }
+    });
+
+    meal_container.append(dropZone);
+}
+function prompt_for_meal_details(frm, meal) {
+    let meal_types = ["BREAKFAST", "LUNCH", "DINNER", "SNACKS", "DESSERT"];
+
+    frappe.prompt([
+        {
+            label: "Select Date",
+            fieldname: "selected_date",
+            fieldtype: "Date",
+            reqd: 1
+        },
+        {
+            label: "Meal Type",
+            fieldname: "meal_type",
+            fieldtype: "Select",
+            options: meal_types.join("\n"),
+            reqd: 1
+        }
+    ],
+    function(values) {
+        let row = frm.add_child("meal_plan_entry");
+        row.meal_id = meal.name;
+        row.meal_name = meal.meal_name;
+        row.meal_type = values.meal_type;
+        row.date = values.selected_date; 
+        frm.refresh_field("meal_plan_entry");
+    },
+    "Add Meal to Meal Plan",
+    "Add");
+}
+
+
+function update_meal_dates(frm) {
+    if (!frm.doc.start_date || !frm.doc.end_date) return;
+
+    let startDate = new Date(frm.doc.start_date);
+    let endDate = new Date(frm.doc.end_date);
+
+    frm.clear_table("meal_plan_entry");
+
+    let currentDate = startDate;
+    while (currentDate <= endDate) {
+        let formattedDate = frappe.datetime.str_to_obj(frappe.datetime.obj_to_str(currentDate));
+
+        let row = frm.add_child("meal_plan_entry");
+        row.date = frappe.datetime.obj_to_str(currentDate, 'YYYY-MM-DD'); 
+
+        currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    frm.refresh_field("meal_plan_entry");
+}
