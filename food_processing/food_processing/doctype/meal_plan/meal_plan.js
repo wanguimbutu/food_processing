@@ -2,16 +2,16 @@ frappe.ui.form.on('Meal Plan', {
     refresh: function(frm) {
         setup_meal_drag_and_drop(frm);
     },
-
-    start_date: function(frm) {
-        update_meal_dates(frm);
+    small_appetite: function(frm) {
+        validate_and_calculate(frm);
     },
-
-    end_date: function(frm) {
-        update_meal_dates(frm);
+    normal_appetite: function(frm) {
+        validate_and_calculate(frm);
+    },
+    large_appetite: function(frm) {
+        validate_and_calculate(frm);
     }
 });
-
 
 function setup_meal_drag_and_drop(frm) {
     if (!frm.fields_dict.meal_list) return;
@@ -19,14 +19,12 @@ function setup_meal_drag_and_drop(frm) {
     let meal_container = $(frm.fields_dict.meal_list.wrapper);
     meal_container.empty();
 
-
     let mealList = $("<div>").css({
         "border": "1px solid #ddd",
         "padding": "10px",
         "margin-bottom": "10px",
         "background": "#f8f9fa"
     }).text("Drag Meals Below:");
-
 
     frappe.call({
         method: "frappe.client.get_list",
@@ -51,7 +49,6 @@ function setup_meal_drag_and_drop(frm) {
                         })
                         .attr("draggable", true);
 
-    
                     item.on("dragstart", function(event) {
                         event.originalEvent.dataTransfer.setData("meal", $(this).attr("data-meal"));
                     });
@@ -85,7 +82,6 @@ function setup_meal_drag_and_drop(frm) {
         let meal_id = event.originalEvent.dataTransfer.getData("meal");
 
         if (meal_id) {
-        
             frappe.call({
                 method: "frappe.client.get",
                 args: {
@@ -104,6 +100,7 @@ function setup_meal_drag_and_drop(frm) {
 
     meal_container.append(dropZone);
 }
+
 function prompt_for_meal_details(frm, meal) {
     let meal_types = ["BREAKFAST", "LUNCH", "DINNER", "SNACKS", "DESSERT"];
 
@@ -127,31 +124,79 @@ function prompt_for_meal_details(frm, meal) {
         row.meal_id = meal.name;
         row.meal_name = meal.meal_name;
         row.meal_type = values.meal_type;
-        row.date = values.selected_date; 
+        row.date = values.selected_date;
         frm.refresh_field("meal_plan_entry");
+
+        fetch_meal_ingredients(frm, meal.name);
     },
     "Add Meal to Meal Plan",
     "Add");
 }
+function validate_and_calculate(frm) {
+    let small = frm.doc.small_appetite || 0;
+    let normal = frm.doc.normal_appetite || 0;
+    let large = frm.doc.large_appetite || 0;
+    let total_individuals = frm.doc.total_individuals || 0;
 
+    let total_entered = small + normal + large;
 
-function update_meal_dates(frm) {
-    if (!frm.doc.start_date || !frm.doc.end_date) return;
-
-    let startDate = new Date(frm.doc.start_date);
-    let endDate = new Date(frm.doc.end_date);
-
-    frm.clear_table("meal_plan_entry");
-
-    let currentDate = startDate;
-    while (currentDate <= endDate) {
-        let formattedDate = frappe.datetime.str_to_obj(frappe.datetime.obj_to_str(currentDate));
-
-        let row = frm.add_child("meal_plan_entry");
-        row.date = frappe.datetime.obj_to_str(currentDate, 'YYYY-MM-DD'); 
-
-        currentDate.setDate(currentDate.getDate() + 1);
+    // Ensure the total does not exceed the given total_individuals
+    if (total_entered > total_individuals) {
+        frappe.msgprint(__('The sum of small, normal, and large appetite individuals cannot exceed Total Individuals (' + total_individuals + '). Please adjust the values.'));
+        return;
     }
 
-    frm.refresh_field("meal_plan_entry");
+    // Calculate total servings
+    let total_servings = (small * 0.75) + (normal * 1) + (large * 1.25);
+    frm.set_value('total_servings', total_servings);
+}
+
+
+function fetch_meal_ingredients(frm, meal_id) {
+    if (!meal_id) {
+        return;
+    }
+
+    let total_servings = frm.doc.total_servings || 1; // Ensure we have a valid total_servings value
+
+    frappe.call({
+        method: "food_processing.food_processing.doctype.meal_plan.meal_plan.fetch_ingredients",
+        args: {
+            meal_id: meal_id,
+            total_servings: total_servings
+        },
+        callback: function(r) {
+            if (r.message) {
+                let ingredients = r.message;
+
+                // Create a new Shopping List document
+                frappe.call({
+                    method: "frappe.client.insert",
+                    args: {
+                        doc: {
+                            doctype: "Shopping List",
+                            shopping_details: ingredients.map(ingredient => ({
+                                item_code: ingredient.ingredient_id,  // Assuming there is an ID field
+                                item_name: ingredient.ingredient_name,
+                                qty: ingredient.qty,
+                                cost: ingredient.cost
+                            }))
+                        }
+                    },
+                    callback: function(res) {
+                        if (res.message) {
+                            frappe.msgprint({
+                                title: __("Success"),
+                                message: `Ingredients added to Shopping List <b>${res.message.name}</b>.`,
+                                indicator: "green"
+                            });
+
+                            // Open the Shopping List for user confirmation
+                            frappe.set_route("Form", "Shopping List", res.message.name);
+                        }
+                    }
+                });
+            }
+        }
+    });
 }

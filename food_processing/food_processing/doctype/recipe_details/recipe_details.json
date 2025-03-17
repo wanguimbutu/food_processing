@@ -18,7 +18,7 @@
    "options": "Recipe"
   },
   {
-   "fetch_from": "recipe_name.total_cost",
+   "fetch_from": "recipe_name.cost_per_serving",
    "fieldname": "cost_per_recipe",
    "fieldtype": "Currency",
    "in_list_view": 1,
@@ -29,7 +29,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-03-10 12:35:15.926501",
+ "modified": "2025-03-15 12:03:19.443745",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Recipe Details",

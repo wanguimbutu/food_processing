@@ -1,0 +1,78 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-03-17 10:45:31.273391",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "meal_plan",
+  "group_name",
+  "section_break_bzed",
+  "shopping_details",
+  "section_break_rbgm",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_rbgm",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Shopping List",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "meal_plan",
+   "fieldtype": "Link",
+   "label": "Meal Plan",
+   "options": "Meal Plan"
+  },
+  {
+   "fieldname": "group_name",
+   "fieldtype": "Data",
+   "label": "Group Name"
+  },
+  {
+   "fieldname": "section_break_bzed",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "shopping_details",
+   "fieldtype": "Table",
+   "label": "Shopping Details",
+   "options": "Shopping Details"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2025-03-17 11:00:24.855884",
+ "modified_by": "Administrator",
+ "module": "Food Processing",
+ "name": "Shopping List",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

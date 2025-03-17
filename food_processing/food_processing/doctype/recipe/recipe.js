@@ -33,3 +33,36 @@ frappe.ui.form.on('Recipe', {
         }
     }
 });
+
+frappe.ui.form.on('Ingredient Details', {
+    substitute: function(frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+
+        let d = new frappe.ui.Dialog({
+            title: "Substitute Ingredient",
+            fields: [
+                { label: "Current Ingredient", fieldname: "current_ingredient", fieldtype: "Data", read_only: 1, default: row.ingredient_name },
+                { label: "New Substitute Ingredient", fieldname: "substituted_ingredient", fieldtype: "Link", options: "Item", reqd: 1 },
+                { label: "New Qty", fieldname: "substituted_qty", fieldtype: "Float", reqd: 1 },
+                { label: "New UOM", fieldname: "substituted_uom", fieldtype: "Data", reqd: 1 },
+                { label: "Dietary Specification", fieldname: "dietary_specification", fieldtype: "MultiSelect",
+                  options: ["Gluten-Free", "Vegan", "Nut-Free", "Dairy-Free", "Halal", "Kosher"]
+                }
+            ],
+            primary_action_label: "Save Substitute",
+            primary_action: function(data) {
+                frappe.model.set_value(cdt, cdn, "substituted_ingredient", data.substituted_ingredient);
+                frappe.model.set_value(cdt, cdn, "substituted_qty", data.substituted_qty);
+                frappe.model.set_value(cdt, cdn, "substituted_uom", data.substituted_uom);
+                
+                // Ensure dietary_specification is stored as a list
+                frappe.model.set_value(cdt, cdn, "dietary_specification", JSON.stringify(data.dietary_specification));
+
+                frm.refresh_field("ingredients");
+                d.hide();
+            }
+        });
+
+        d.show();
+    }
+});

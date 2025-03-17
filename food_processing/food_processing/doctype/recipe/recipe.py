@@ -7,6 +7,24 @@ from frappe.model.document import Document
 class Recipe(Document):
 	pass
 
+def before_save(doc, method):
+    total_cost = 0
+
+    for ingredient in doc.ingredients:
+        ingredient_cost = (ingredient.cost or 0) * (ingredient.qty or 0)
+        total_cost += ingredient_cost
+
+    doc.total_cost = total_cost
+
+    # Calculate cost per serving if servings_per_recipe is greater than zero
+    if doc.servings_per_recipe and doc.servings_per_recipe > 0:
+        doc.cost_per_serving = total_cost / doc.servings_per_recipe
+    else:
+        doc.cost_per_serving = 0  # Avoid division by zero
+
+    frappe.logger().info(f"Recipe {doc.name}: Total Cost = {total_cost}, Cost per Serving = {doc.cost_per_serving}")
+
+
 @frappe.whitelist()
 def add_recipe_tags(recipe_name, tags):
 
@@ -31,3 +49,40 @@ def add_recipe_tags(recipe_name, tags):
             tag_link.insert(ignore_permissions=True)
 
     return {"status": "success", "tags_added": tags}
+
+import json
+
+@frappe.whitelist()
+def get_recipe_with_dietary_substitutes(recipe_name, dietary_specification):
+    """
+    Fetches a recipe and applies ingredient substitutions based on dietary restrictions.
+    """
+    recipe = frappe.get_doc("Recipe", recipe_name)
+
+    # Ensure dietary_specification is treated as a list
+    if isinstance(dietary_specification, str):
+        dietary_specification = json.loads(dietary_specification)  # Convert string to list
+
+    for ingredient in recipe.ingredients:
+        if ingredient.dietary_specification:
+            ingredient_diet_specs = json.loads(ingredient.dietary_specification)
+
+            if any(spec in dietary_specification for spec in ingredient_diet_specs):
+                ingredient.ingredient = ingredient.substituted_ingredient
+                ingredient.qty = ingredient.substituted_qty
+                ingredient.unit_of_measure = ingredient.substituted_uom
+                ingredient.is_substituted = True
+
+    return recipe
+
+import json
+
+@frappe.whitelist()
+def save_recipe(doc):
+    if isinstance(doc, str):
+        doc = json.loads(doc)  # Convert string to dictionary
+
+    doc = frappe.get_doc(doc)  # Ensure it's a Frappe document
+    doc.save()
+    return doc
+

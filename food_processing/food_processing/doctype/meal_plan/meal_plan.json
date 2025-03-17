@@ -7,9 +7,9 @@
  "field_order": [
   "group_name",
   "section_break_rafp",
-  "number_of_small_appetite_individuals075_serving",
-  "number_of_normal_appetite1_serving",
-  "number_of_large_appetite125_serving",
+  "small_appetite",
+  "normal_appetite",
+  "large_appetite",
   "column_break_xgkf",
   "total_individuals",
   "total_servings",
@@ -48,21 +48,6 @@
    "fieldtype": "Section Break"
   },
   {
-   "fieldname": "number_of_small_appetite_individuals075_serving",
-   "fieldtype": "Int",
-   "label": "Number of small appetite individuals(0.75 serving)"
-  },
-  {
-   "fieldname": "number_of_normal_appetite1_serving",
-   "fieldtype": "Int",
-   "label": "Number of normal Appetite(1 serving)"
-  },
-  {
-   "fieldname": "number_of_large_appetite125_serving",
-   "fieldtype": "Int",
-   "label": "Number of Large Appetite(1.25 serving)"
-  },
-  {
    "fieldname": "column_break_xgkf",
    "fieldtype": "Column Break"
   },
@@ -73,8 +58,9 @@
   },
   {
    "fieldname": "total_servings",
-   "fieldtype": "Int",
-   "label": "Total Servings"
+   "fieldtype": "Float",
+   "label": "Total Servings",
+   "read_only": 1
   },
   {
    "fieldname": "add_recipes_section",
@@ -109,12 +95,27 @@
    "fieldname": "meal_list",
    "fieldtype": "HTML",
    "label": "Meal List"
+  },
+  {
+   "fieldname": "small_appetite",
+   "fieldtype": "Int",
+   "label": "Number of small appetite individuals(0.75 serving)"
+  },
+  {
+   "fieldname": "normal_appetite",
+   "fieldtype": "Int",
+   "label": "Number of normal Appetite(1 serving)"
+  },
+  {
+   "fieldname": "large_appetite",
+   "fieldtype": "Int",
+   "label": "Number of Large Appetite(1.25 serving)"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-03-10 14:53:04.928337",
+ "modified": "2025-03-17 11:36:07.210550",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Meal Plan",

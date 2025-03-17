@@ -9,6 +9,7 @@
   "recipe_name",
   "column_break_ojiw",
   "servings_per_recipe",
+  "cost_per_serving",
   "section_break_pdvu",
   "ingredients",
   "total_cost",
@@ -51,7 +52,7 @@
   },
   {
    "fieldname": "servings_per_recipe",
-   "fieldtype": "Int",
+   "fieldtype": "Float",
    "label": "Servings Per Recipe"
   },
   {
@@ -204,11 +205,16 @@
    "fieldtype": "Currency",
    "label": "Total Cost",
    "read_only": 1
+  },
+  {
+   "fieldname": "cost_per_serving",
+   "fieldtype": "Currency",
+   "label": "Cost Per Serving"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-03-10 12:32:26.815960",
+ "modified": "2025-03-11 15:27:01.392929",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Recipe",

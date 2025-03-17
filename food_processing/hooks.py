@@ -5,6 +5,16 @@ app_description = "Application to handle food processing and making in restauran
 app_email = "wanguimbutu@gmail.com"
 app_license = "mit"
 
+
+doc_events = {
+    "Recipe": {
+        "before_save": "food_processing.food_processing.doctype.recipe.recipe.before_save"
+    },
+    "Meals": {
+        "validate": "food_processing.food_processing.doctype.meals.meals.update_total_meal_cost"
+    }
+}
+
 # Apps
 # ------------------
 
