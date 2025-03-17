@@ -1,6 +1,7 @@
 frappe.ui.form.on('Meal Plan', {
     refresh: function(frm) {
         setup_meal_drag_and_drop(frm);
+        render_meal_plan_table(frm);
     },
     small_appetite: function(frm) {
         validate_and_calculate(frm);
@@ -10,22 +11,75 @@ frappe.ui.form.on('Meal Plan', {
     },
     large_appetite: function(frm) {
         validate_and_calculate(frm);
+    },
+    start_date: function(frm) {
+        render_meal_plan_table(frm); // Re-render when start_date changes
+    },
+    end_date: function(frm) {
+        render_meal_plan_table(frm); // Re-render when end_date changes
     }
 });
+function render_meal_plan_table(frm) {
+    let start_date = frm.doc.start_date;
+    let end_date = frm.doc.end_date;
 
+    if (!start_date || !end_date) {
+        return; // Don't render table if dates are missing
+    }
+
+    let start = moment(start_date);
+    let end = moment(end_date);
+
+    if (end.isBefore(start)) {
+        frappe.msgprint(__('End date cannot be before start date.'));
+        return;
+    }
+
+    let html = `
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Breakfast</th>
+                    <th>Lunch</th>
+                    <th>Dinner</th>
+                    <th>Snack & Beverage</th>
+                    <th>Dessert</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    for (let date = moment(start); date.isSameOrBefore(end); date.add(1, 'days')) {
+        let formatted_date = date.format('YYYY-MM-DD');
+        let display_date = date.format('ddd MM/DD/YY'); // Example: Mon 03/17/25
+
+        html += `
+            <tr data-date="${formatted_date}">
+                <td>${display_date}</td>
+                <td data-meal-type="Breakfast" class="drop-zone"></td>
+                <td data-meal-type="Lunch" class="drop-zone"></td>
+                <td data-meal-type="Dinner" class="drop-zone"></td>
+                <td data-meal-type="Snack & Beverage" class="drop-zone"></td>
+                <td data-meal-type="Dessert" class="drop-zone"></td>
+            </tr>
+        `;
+    }
+
+    html += `</tbody></table>`;
+
+    frm.fields_dict.meal_plan_table.$wrapper.html(html);
+
+    // Reinitialize drag-and-drop after table update
+    setup_meal_drag_and_drop(frm);
+}
 function setup_meal_drag_and_drop(frm) {
     if (!frm.fields_dict.meal_list) return;
 
     let meal_container = $(frm.fields_dict.meal_list.wrapper);
     meal_container.empty();
 
-    let mealList = $("<div>").css({
-        "border": "1px solid #ddd",
-        "padding": "10px",
-        "margin-bottom": "10px",
-        "background": "#f8f9fa"
-    }).text("Drag Meals Below:");
-
+    // Fetch meals from the database
     frappe.call({
         method: "frappe.client.get_list",
         args: {
@@ -45,60 +99,56 @@ function setup_meal_drag_and_drop(frm) {
                             "margin": "5px 0",
                             "background-color": "#ffffff",
                             "cursor": "grab",
-                            "width": "50%"
+                            "width": "80%",
+                            "text-align": "center"
                         })
                         .attr("draggable", true);
 
                     item.on("dragstart", function(event) {
                         event.originalEvent.dataTransfer.setData("meal", $(this).attr("data-meal"));
+                        event.originalEvent.dataTransfer.setData("meal_name", $(this).text());
                     });
 
-                    mealList.append(item);
+                    meal_container.append(item);
                 });
-
-                meal_container.append(mealList);
             }
         }
     });
 
-    let dropZone = $("<div>")
-        .addClass("meal-drop-zone")
-        .css({
-            "border": "2px dashed #007bff",
-            "padding": "15px",
-            "min-height": "100px",
-            "background": "#e9f5ff",
-            "text-align": "center",
-            "margin-top": "20px"
-        })
-        .text("Drop Meals Here");
+    // Attach drop event to each meal type cell in the table
+    let meal_types = ["Breakfast", "Lunch", "Dinner", "Snack & Beverage","Dessert"];
 
-    dropZone.on("dragover", function(event) {
-        event.preventDefault();
+    meal_types.forEach(type => {
+        $(`td[data-meal-type="${type}"]`).on("dragover", function(event) {
+            event.preventDefault();
+        });
+
+        $(`td[data-meal-type="${type}"]`).on("drop", function(event) {
+            event.preventDefault();
+            let meal_id = event.originalEvent.dataTransfer.getData("meal");
+            let meal_name = event.originalEvent.dataTransfer.getData("meal_name");
+            
+            if (meal_id && meal_name) {
+                let selected_date = $(event.target).closest("tr").attr("data-date");
+                let meal_type = $(event.target).attr("data-meal-type");
+
+                // Add to UI immediately
+                $(event.target).append(`<div class="meal-item" style="padding:5px; background:#f2f2f2; margin:3px;">${meal_name}</div>`);
+
+                // Add to meal_plan_entry (child table)
+                add_meal_to_plan(frm, meal_id, meal_name, selected_date, meal_type);
+            }
+        });
     });
+}
 
-    dropZone.on("drop", function(event) {
-        event.preventDefault();
-        let meal_id = event.originalEvent.dataTransfer.getData("meal");
-
-        if (meal_id) {
-            frappe.call({
-                method: "frappe.client.get",
-                args: {
-                    doctype: "Meals",
-                    name: meal_id
-                },
-                callback: function(response) {
-                    if (response.message) {
-                        let meal = response.message;
-                        prompt_for_meal_details(frm, meal);
-                    }
-                }
-            });
-        }
-    });
-
-    meal_container.append(dropZone);
+function add_meal_to_plan(frm, meal_id, meal_name, date, meal_type) {
+    let row = frm.add_child("meal_plan_entry");
+    row.meal_id = meal_id;
+    row.meal_name = meal_name;
+    row.meal_type = meal_type;
+    row.date = date;
+    frm.refresh_field("meal_plan_entry");
 }
 
 function prompt_for_meal_details(frm, meal) {
@@ -176,7 +226,7 @@ function fetch_meal_ingredients(frm, meal_id) {
                         doc: {
                             doctype: "Shopping List",
                             shopping_details: ingredients.map(ingredient => ({
-                                item_code: ingredient.ingredient_id,  // Assuming there is an ID field
+                                item_code: ingredient.ingredient,  // Assuming there is an ID field
                                 item_name: ingredient.ingredient_name,
                                 qty: ingredient.qty,
                                 cost: ingredient.cost

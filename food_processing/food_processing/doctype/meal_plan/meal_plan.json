@@ -18,6 +18,7 @@
   "end_date",
   "section_break_axdj",
   "meal_list",
+  "meal_plan_table",
   "section_break_vrxk",
   "meal_plan_entry",
   "section_break_46tw",
@@ -110,12 +111,17 @@
    "fieldname": "large_appetite",
    "fieldtype": "Int",
    "label": "Number of Large Appetite(1.25 serving)"
+  },
+  {
+   "fieldname": "meal_plan_table",
+   "fieldtype": "HTML",
+   "label": "Meal Plan Table"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-03-17 11:36:07.210550",
+ "modified": "2025-03-17 12:33:08.423096",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Meal Plan",

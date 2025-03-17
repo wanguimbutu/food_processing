@@ -23,7 +23,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Meal Type",
-   "options": "\nBREAKFAST\nLUNCH\nDINNER\nSNACKS\nDESSERT\nBEVERAGES"
+   "options": "\nBreakfast\nLunch\nDinner\nSnacks\nDessert"
   },
   {
    "fieldname": "meal_id",
@@ -43,7 +43,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-03-10 14:50:59.739282",
+ "modified": "2025-03-17 12:58:53.453671",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Meal Plan Entry",
