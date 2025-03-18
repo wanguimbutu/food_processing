@@ -1,0 +1,62 @@
+{
+ "charts": [],
+ "content": "[{\"id\":\"bxcobwJQdw\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Meals And Recipes</span>\",\"col\":12}},{\"id\":\"ivQor-FXKZ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Recipes\",\"col\":3}},{\"id\":\"Et8MpfAjla\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Meal Plan\",\"col\":3}},{\"id\":\"aYHwycSmFd\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Meals List\",\"col\":3}},{\"id\":\"9XAWS-IEgW\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Shopping List\",\"col\":3}}]",
+ "creation": "2025-03-17 15:02:24.387625",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "agriculture",
+ "idx": 0,
+ "indicator_color": "green",
+ "is_hidden": 0,
+ "label": "Meals And Recipes",
+ "links": [],
+ "modified": "2025-03-17 15:10:34.374404",
+ "modified_by": "Administrator",
+ "module": "Food Processing",
+ "name": "Meals And Recipes",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [],
+ "sequence_id": 41.0,
+ "shortcuts": [
+  {
+   "color": "Blue",
+   "doc_view": "List",
+   "label": "Shopping List",
+   "link_to": "Shopping List",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Green",
+   "doc_view": "List",
+   "label": "Recipes",
+   "link_to": "Recipe",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Pink",
+   "doc_view": "List",
+   "label": "Meal Plan",
+   "link_to": "Meal Plan",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Red",
+   "doc_view": "List",
+   "label": "Meals List",
+   "link_to": "Meals",
+   "stats_filter": "[]",
+   "type": "DocType"
+  }
+ ],
+ "title": "Meals And Recipes"
+}

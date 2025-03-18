@@ -14,27 +14,9 @@
   "ingredients",
   "total_cost",
   "meal_contains_section",
-  "eggs",
-  "beef",
-  "poultry",
-  "fish",
-  "nuts",
-  "column_break_fbpu",
-  "soy",
-  "wheatgluten",
-  "dairy",
-  "shellfish",
+  "diet_restrictions",
   "meal_category_section",
-  "breakfast",
-  "snack",
-  "appetizer",
-  "lunch",
-  "column_break_mcoe",
-  "dinner",
-  "dessert",
-  "side_dish",
-  "beverage",
-  "other",
+  "meal_category",
   "section_break_shpu",
   "recipe_instructions"
  ],
@@ -71,125 +53,9 @@
    "label": "Meal Contains"
   },
   {
-   "default": "0",
-   "fieldname": "eggs",
-   "fieldtype": "Check",
-   "label": "Eggs"
-  },
-  {
-   "default": "0",
-   "fieldname": "beef",
-   "fieldtype": "Check",
-   "label": "Beef"
-  },
-  {
-   "default": "0",
-   "fieldname": "poultry",
-   "fieldtype": "Check",
-   "label": "Poultry"
-  },
-  {
-   "default": "0",
-   "fieldname": "fish",
-   "fieldtype": "Check",
-   "label": "Fish"
-  },
-  {
-   "default": "0",
-   "fieldname": "nuts",
-   "fieldtype": "Check",
-   "label": "Nuts"
-  },
-  {
-   "fieldname": "column_break_fbpu",
-   "fieldtype": "Column Break"
-  },
-  {
-   "default": "0",
-   "fieldname": "soy",
-   "fieldtype": "Check",
-   "label": "Soy"
-  },
-  {
-   "default": "0",
-   "fieldname": "wheatgluten",
-   "fieldtype": "Check",
-   "label": "Wheat/Gluten"
-  },
-  {
-   "default": "0",
-   "fieldname": "dairy",
-   "fieldtype": "Check",
-   "label": "Dairy"
-  },
-  {
-   "default": "0",
-   "fieldname": "shellfish",
-   "fieldtype": "Check",
-   "label": "ShellFish"
-  },
-  {
    "fieldname": "meal_category_section",
    "fieldtype": "Section Break",
    "label": "Meal Category"
-  },
-  {
-   "default": "0",
-   "fieldname": "breakfast",
-   "fieldtype": "Check",
-   "label": "Breakfast"
-  },
-  {
-   "default": "0",
-   "fieldname": "snack",
-   "fieldtype": "Check",
-   "label": "Snack"
-  },
-  {
-   "default": "0",
-   "fieldname": "appetizer",
-   "fieldtype": "Check",
-   "label": "Appetizer"
-  },
-  {
-   "default": "0",
-   "fieldname": "lunch",
-   "fieldtype": "Check",
-   "label": "Lunch"
-  },
-  {
-   "fieldname": "column_break_mcoe",
-   "fieldtype": "Column Break"
-  },
-  {
-   "default": "0",
-   "fieldname": "dinner",
-   "fieldtype": "Check",
-   "label": "Dinner"
-  },
-  {
-   "default": "0",
-   "fieldname": "dessert",
-   "fieldtype": "Check",
-   "label": "Dessert"
-  },
-  {
-   "default": "0",
-   "fieldname": "side_dish",
-   "fieldtype": "Check",
-   "label": "Side Dish"
-  },
-  {
-   "default": "0",
-   "fieldname": "beverage",
-   "fieldtype": "Check",
-   "label": "Beverage"
-  },
-  {
-   "default": "0",
-   "fieldname": "other",
-   "fieldtype": "Check",
-   "label": "Other"
   },
   {
    "fieldname": "section_break_shpu",
@@ -210,11 +76,23 @@
    "fieldname": "cost_per_serving",
    "fieldtype": "Currency",
    "label": "Cost Per Serving"
+  },
+  {
+   "fieldname": "diet_restrictions",
+   "fieldtype": "Table",
+   "label": "Diet Restrictions",
+   "options": "Diet Restrictions"
+  },
+  {
+   "fieldname": "meal_category",
+   "fieldtype": "Table",
+   "label": "Meal Category",
+   "options": "Meal Category Details"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-03-11 15:27:01.392929",
+ "modified": "2025-03-17 15:23:31.616459",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Recipe",
