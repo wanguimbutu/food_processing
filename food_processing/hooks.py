@@ -12,8 +12,13 @@ doc_events = {
     },
     "Meals": {
         "validate": "food_processing.food_processing.doctype.meals.meals.update_total_meal_cost"
+    },
+    "Recipe": {
+        "validate": "food_processing.food_processing.doctype.recipe.recipe.update_ingredient_prices"
     }
 }
+
+
 
 # Apps
 # ------------------

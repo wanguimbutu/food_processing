@@ -64,5 +64,30 @@ frappe.ui.form.on('Ingredient Details', {
         });
 
         d.show();
+    },
+    ingredient: function(frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        
+        if (row.ingredient) {
+            frappe.call({
+                method: "frappe.client.get_value",
+                args: {
+                    doctype: "Item Price",
+                    filters: {
+                        item_code: row.ingredient,
+                        price_list: "Standard Buying"
+                    },
+                    fieldname: "price_list_rate"
+                },
+                callback: function(r) {
+                    if (r.message) {
+                        frappe.model.set_value(cdt, cdn, "cost", r.message.price_list_rate);
+                    } else {
+                        frappe.msgprint(__('No price found for this ingredient.'));
+                    }
+                }
+            });
+        }
     }
 });
+

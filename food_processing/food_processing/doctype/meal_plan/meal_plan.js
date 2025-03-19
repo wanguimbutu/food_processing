@@ -230,39 +230,60 @@ function setup_meal_drag_and_drop(frm) {
 }
 
 function add_meal_to_plan(frm, meal_id, meal_name, date, meal_type) {
-    
-    let exists = frm.doc.meal_plan_entry.some(entry =>
-        entry.meal_id === meal_id &&
-        entry.date === date &&
-        entry.meal_type === meal_type
-    );
+    frappe.call({
+        method: "frappe.client.get_value",
+        args: {
+            doctype: "Meals",
+            filters: { name: meal_id },
+            fieldname: ["meal_category"]
+        },
+        callback: function(response) {
+            if (response.message) {
+                let meal_category = response.message.meal_category;
+                let row = frm.add_child("meal_plan_entry");
+                row.meal_id = meal_id;
+                row.meal_name = meal_name;
+                row.meal_type = meal_type;
+                row.date = date;
 
-    if (!exists) {
-        let row = frm.add_child("meal_plan_entry");
-        row.meal_id = meal_id;
-        row.meal_name = meal_name;
-        row.meal_type = meal_type;
-        row.date = date;
-        frm.refresh_field("meal_plan_entry");
-
-        calculate_meal_costs(frm);
-    }
+                // If LSG, prompt user for percentage BEFORE calculating costs
+                if (meal_category === "LSG") {
+                    frappe.prompt([
+                        {
+                            label: "Selected Percentage",
+                            fieldname: "selected_percentage",
+                            fieldtype: "Float",
+                            reqd: 1,
+                            description: "Enter the percentage as a decimal (e.g., 0.2 for 20%)"
+                        }
+                    ], function(values) {
+                        row.selected_percentage = values.selected_percentage;
+                        frm.refresh_field("meal_plan_entry");
+                        calculate_meal_costs(frm);  // ✅ Recalculate costs after percentage input
+                    }, "Enter Percentage for LSG Meal", "Submit");
+                } else {
+                    frm.refresh_field("meal_plan_entry");
+                    calculate_meal_costs(frm);  // ✅ Ensure calculation runs for non-LSG meals
+                }
+            }                
+        }
+    });
 }
 
 function remove_meal_from_plan(frm, meal_id, date, meal_type) {
     let entries = frm.doc.meal_plan_entry || [];
     
-
     let updatedEntries = entries.filter(entry => 
         !(entry.meal_id === meal_id && entry.date === date && entry.meal_type === meal_type)
     );
 
-    
     frm.doc.meal_plan_entry = updatedEntries;
     frm.refresh_field("meal_plan_entry");
 
+    // ✅ Run cost calculation only after update
     calculate_meal_costs(frm);
 }
+
 
 
 function prompt_for_meal_details(frm, meal) {
@@ -329,66 +350,11 @@ function validate_and_calculate(frm) {
     frm.set_value('total_servings', total_servings);
 }
 
-
 function fetch_meal_ingredients(frm) {
-    console.log("Fetching meal ingredients..."); 
+    console.log("Fetching meal ingredients...");
 
-    let total_servings = frm.doc.total_servings || 1;
-    let meal_ids = frm.doc.meal_plan_entry.map(entry => entry.meal_id); 
-
-    if (meal_ids.length === 0) {
-        frappe.msgprint(__('No meals selected in the meal plan.'));
-        return;
-    }
-
-    console.log("Meal IDs to fetch:", meal_ids); 
-
-    frappe.call({
-        method: "food_processing.food_processing.doctype.meal_plan.meal_plan.fetch_ingredients",
-        args: {
-            meal_ids: meal_ids,
-            total_servings: total_servings
-        },
-        callback: function(r) {
-            console.log("Fetched ingredients:", r.message); 
-
-            if (!r.message || r.message.length === 0) {
-                frappe.msgprint(__('No ingredients found for the selected meals.'));
-                return;
-            }
-
-            frappe.call({
-                method: "frappe.client.insert",
-                args: {
-                    doc: {
-                        doctype: "Shopping List",
-                        shopping_details: r.message.map(ingredient => ({
-                            item_code: ingredient.ingredient,
-                            item_name: ingredient.ingredient_name,
-                            qty: ingredient.qty,
-                            cost: ingredient.cost
-                        }))
-                    }
-                },
-                callback: function(res) {
-                    console.log("Created Shopping List:", res.message); 
-
-                    if (res.message) {
-                        frappe.msgprint({
-                            title: __("Success"),
-                            message: `Ingredients added to Shopping List <b>${res.message.name}</b>.`,
-                            indicator: "green"
-                        });
-
-                        frappe.set_route("Form", "Shopping List", res.message.name);
-                    }
-                }
-            });
-        }
-    });
-}
-
-function calculate_meal_costs(frm) {
+    let total_servings = frm.doc.total_servings || 1; // Total servings for non-LSG meals
+    let total_individuals = frm.doc.total_individuals || 1; // Total individuals for calculation
     let meal_entries = frm.doc.meal_plan_entry || [];
 
     if (meal_entries.length === 0) {
@@ -396,14 +362,94 @@ function calculate_meal_costs(frm) {
         return;
     }
 
-    let daily_costs = {};
-    let total_cost = 0;
+    let meal_data = meal_entries.map(entry => ({
+        meal_id: entry.meal_id,
+        meal_type: entry.meal_type,
+        meal_category: entry.meal_category,  
+        selected_percentage: entry.selected_percentage || 0
+    }));
+
+    console.log("Meal Entries to fetch:", meal_data);
+
+    frappe.call({
+        method: "food_processing.food_processing.doctype.meal_plan.meal_plan.fetch_ingredients",
+        args: {
+            meal_data: meal_data,
+            total_servings: total_servings, // Ensure total_servings is sent
+            total_individuals: total_individuals // ✅ Now including total_individuals
+        },
+        callback: function(r) {
+            console.log("Fetched ingredients:", r.message);
+
+            if (!r.message || r.message.length === 0) {
+                frappe.msgprint(__('No ingredients found for the selected meals.'));
+                return;
+            }
+
+            let shopping_list = r.message.map(ingredient => {
+                let qty = ingredient.qty;
+                let entry = meal_entries.find(e => e.meal_id === ingredient.meal_id);
+                
+                if (entry) {
+                    if (entry.meal_category === "LSG" && entry.selected_percentage) {
+                        qty *= entry.selected_percentage; // ✅ Adjust for LSG meals
+                    } else {
+                        qty *= total_servings; // ✅ Multiply by total servings for non-LSG meals
+                    }
+                }
+
+                return {
+                    item_code: ingredient.ingredient,
+                    item_name: ingredient.ingredient_name,
+                    qty: qty,
+                    cost: ingredient.cost
+                };
+            });
+
+            console.log("Final Shopping List:", shopping_list);
+
+            frappe.call({
+                method: "frappe.client.insert",
+                args: {
+                    doc: {
+                        doctype: "Shopping List",
+                        shopping_details: shopping_list
+                    }
+                },
+                callback: function(res) {
+                    console.log("Created Shopping List:", res.message);
+                    if (res.message) {
+                        frappe.msgprint({
+                            title: __("Success"),
+                            message: `Ingredients added to Shopping List <b>${res.message.name}</b>.`,
+                            indicator: "green"
+                        });
+                    }
+                }
+            });
+        }
+    });
+}
+
+
+function calculate_meal_costs(frm) {
+    let meal_entries = frm.doc.meal_plan_entry || [];
+
+    if (meal_entries.length === 0) {
+        console.log("No meals selected, skipping cost calculation.");
+        return;
+    }
+
+    // Fetch meal IDs and check if there's any meal at all
     let meal_ids = [...new Set(meal_entries.map(entry => entry.meal_id))];
 
     if (meal_ids.length === 0) {
-        console.log("No meal IDs found. Skipping cost calculation.");
+        console.log("No valid meal IDs found, skipping cost calculation.");
         return;
     }
+
+    let daily_costs = {};
+    let total_cost = 0;
 
     console.log("Fetching meal costs for:", meal_ids);
 
@@ -412,49 +458,48 @@ function calculate_meal_costs(frm) {
         args: {
             doctype: "Meals",
             filters: { "name": ["in", meal_ids] },
-            fields: ["name", "total_meal_cost"]
+            fields: ["name", "total_meal_cost", "meal_category"]
         },
         callback: function(response) {
-            if (response.message) {
-                let meal_cost_map = {};
-                
-                response.message.forEach(meal => {
-                    meal_cost_map[meal.name] = meal.total_meal_cost || 0;
-                });
-
-                console.log("Meal Cost Map:", meal_cost_map);
-
-                // Calculate daily meal costs
-                meal_entries.forEach(entry => {
-                    let meal_cost = meal_cost_map[entry.meal_id] || 0;
-                    if (!daily_costs[entry.date]) {
-                        daily_costs[entry.date] = 0;
-                    }
-                    daily_costs[entry.date] += meal_cost;
-                    total_cost += meal_cost;
-                });
-
-                console.log("Daily Costs Calculated:", daily_costs);
-
-                // Clear and update the child table
-                frm.clear_table("daily_meal_costs");
-
-                Object.keys(daily_costs).forEach(date => {
-                    let row = frm.add_child("daily_meal_costs");
-                    row.date = date;
-                    row.meal_cost = daily_costs[date];
-                });
-
-                // Update total cost
-                frm.set_value("total_meal_plan_cost", total_cost);
-
-                // Refresh the fields to ensure UI updates
-                frm.refresh_field("daily_meal_costs");
-                frm.refresh_field("total_meal_plan_cost");
-
-            } else {
-                console.log("No meal costs found.");
+            if (!response.message || response.message.length === 0) {
+                frappe.msgprint(__('No valid meal costs found. Please check meal selections.'));
+                return;
             }
+
+            let meal_cost_map = {};
+            response.message.forEach(meal => {
+                meal_cost_map[meal.name] = {
+                    cost: meal.total_meal_cost || 0,
+                    category: meal.meal_category
+                };
+            });
+
+            console.log("Meal Cost Map:", meal_cost_map);
+
+            meal_entries.forEach(entry => {
+                let meal_info = meal_cost_map[entry.meal_id] || { cost: 0, category: "" };
+                let meal_cost = meal_info.cost;
+
+                if (!daily_costs[entry.date]) {
+                    daily_costs[entry.date] = 0;
+                }
+                daily_costs[entry.date] += meal_cost;
+                total_cost += meal_cost;
+            });
+
+            console.log("Daily Costs Calculated:", daily_costs);
+
+            frm.clear_table("daily_meal_costs");
+            Object.keys(daily_costs).forEach(date => {
+                let row = frm.add_child("daily_meal_costs");
+                row.date = date;
+                row.meal_cost = daily_costs[date];
+            });
+
+            frm.set_value("total_meal_plan_cost", total_cost);
+
+            frm.refresh_field("daily_meal_costs");
+            frm.refresh_field("total_meal_plan_cost");
         }
     });
 }
