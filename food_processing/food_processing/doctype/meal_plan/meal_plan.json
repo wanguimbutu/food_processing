@@ -21,6 +21,9 @@
   "meal_plan_table",
   "section_break_vrxk",
   "meal_plan_entry",
+  "section_break_armn",
+  "daily_meal_costs",
+  "total_meal_plan_cost",
   "section_break_46tw",
   "amended_from"
  ],
@@ -116,12 +119,27 @@
    "fieldname": "meal_plan_table",
    "fieldtype": "HTML",
    "label": "Meal Plan Table"
+  },
+  {
+   "fieldname": "section_break_armn",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "daily_meal_costs",
+   "fieldtype": "Table",
+   "label": "Daily Meal Costs",
+   "options": "Meal Plan Costs"
+  },
+  {
+   "fieldname": "total_meal_plan_cost",
+   "fieldtype": "Currency",
+   "label": "Total Meal Plan Cost"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-03-17 12:33:08.423096",
+ "modified": "2025-03-19 10:18:37.634545",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Meal Plan",

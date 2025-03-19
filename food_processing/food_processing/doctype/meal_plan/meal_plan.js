@@ -244,6 +244,8 @@ function add_meal_to_plan(frm, meal_id, meal_name, date, meal_type) {
         row.meal_type = meal_type;
         row.date = date;
         frm.refresh_field("meal_plan_entry");
+
+        calculate_meal_costs(frm);
     }
 }
 
@@ -258,6 +260,8 @@ function remove_meal_from_plan(frm, meal_id, date, meal_type) {
     
     frm.doc.meal_plan_entry = updatedEntries;
     frm.refresh_field("meal_plan_entry");
+
+    calculate_meal_costs(frm);
 }
 
 
@@ -380,6 +384,77 @@ function fetch_meal_ingredients(frm) {
                     }
                 }
             });
+        }
+    });
+}
+
+function calculate_meal_costs(frm) {
+    let meal_entries = frm.doc.meal_plan_entry || [];
+
+    if (meal_entries.length === 0) {
+        frappe.msgprint(__('No meals selected in the meal plan.'));
+        return;
+    }
+
+    let daily_costs = {};
+    let total_cost = 0;
+    let meal_ids = [...new Set(meal_entries.map(entry => entry.meal_id))];
+
+    if (meal_ids.length === 0) {
+        console.log("No meal IDs found. Skipping cost calculation.");
+        return;
+    }
+
+    console.log("Fetching meal costs for:", meal_ids);
+
+    frappe.call({
+        method: "frappe.client.get_list",
+        args: {
+            doctype: "Meals",
+            filters: { "name": ["in", meal_ids] },
+            fields: ["name", "total_meal_cost"]
+        },
+        callback: function(response) {
+            if (response.message) {
+                let meal_cost_map = {};
+                
+                response.message.forEach(meal => {
+                    meal_cost_map[meal.name] = meal.total_meal_cost || 0;
+                });
+
+                console.log("Meal Cost Map:", meal_cost_map);
+
+                // Calculate daily meal costs
+                meal_entries.forEach(entry => {
+                    let meal_cost = meal_cost_map[entry.meal_id] || 0;
+                    if (!daily_costs[entry.date]) {
+                        daily_costs[entry.date] = 0;
+                    }
+                    daily_costs[entry.date] += meal_cost;
+                    total_cost += meal_cost;
+                });
+
+                console.log("Daily Costs Calculated:", daily_costs);
+
+                // Clear and update the child table
+                frm.clear_table("daily_meal_costs");
+
+                Object.keys(daily_costs).forEach(date => {
+                    let row = frm.add_child("daily_meal_costs");
+                    row.date = date;
+                    row.meal_cost = daily_costs[date];
+                });
+
+                // Update total cost
+                frm.set_value("total_meal_plan_cost", total_cost);
+
+                // Refresh the fields to ensure UI updates
+                frm.refresh_field("daily_meal_costs");
+                frm.refresh_field("total_meal_plan_cost");
+
+            } else {
+                console.log("No meal costs found.");
+            }
         }
     });
 }
