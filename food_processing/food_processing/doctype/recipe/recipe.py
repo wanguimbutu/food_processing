@@ -87,26 +87,33 @@ def save_recipe(doc):
     return doc
 
 @frappe.whitelist()
+@frappe.whitelist()
 def update_ingredient_prices(doc, method):
     """
     Updates ingredient cost and default unit of measure (UOM) in Recipe based on the latest Item details.
-    Triggered before validation (before saving).
+    Triggered on validate.
     """
     for ingredient in doc.ingredients:
         if ingredient.ingredient:
             # Fetch latest price from Item Price doctype
             item_price = frappe.db.get_value(
                 "Item Price",
-                {"item_code": ingredient.ingredient, "price_list": "Standard Selling"},
+                {"item_code": ingredient.ingredient, "price_list": "Standard Buying"},
                 "price_list_rate"
-            )
+            ) or 0  # Ensure a fallback value of 0
 
             # Fetch default UOM from Item doctype
             default_uom = frappe.db.get_value("Item", ingredient.ingredient, "stock_uom")
 
-            # Update cost field
-            ingredient.cost = item_price if item_price else 0
+            # Debugging logs (Check if values are fetched)
+            frappe.logger().info(f"Item: {ingredient.ingredient}, Price: {item_price}, UOM: {default_uom}")
 
-            # Update UOM only if it's empty (allow manual override)
-            if not ingredient.unit_of_measure:
+            # Update cost field
+            ingredient.cost = item_price
+
+            # Only update UOM if it's empty (allow manual override)
+            if not ingredient.unit_of_measure and default_uom:
                 ingredient.unit_of_measure = default_uom
+
+    # Mark the document as modified so Frappe detects the change
+    doc.set("ingredients", doc.ingredients)
