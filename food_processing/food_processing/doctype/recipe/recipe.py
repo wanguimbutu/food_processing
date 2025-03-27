@@ -7,23 +7,36 @@ from frappe.model.document import Document
 class Recipe(Document):
 	pass
 
+@frappe.whitelist()
 def before_save(doc, method):
+    frappe.msgprint(f"⚡ Hook Triggered for Recipe: {doc.name}", indicator="blue")
+
     total_cost = 0
 
-    for ingredient in doc.ingredients:
-        ingredient_cost = (ingredient.cost or 0) * (ingredient.qty or 0)
+    # Log the ingredients to check if they exist
+    frappe.logger().info(f"Recipe {doc.name} Ingredients: {doc.get('ingredients', [])}")
+
+    for ingredient in doc.get("ingredients", []):
+        cost = ingredient.get("cost", 0) or 0
+        qty = ingredient.get("qty", 0) or 0
+        ingredient_cost = cost * qty
         total_cost += ingredient_cost
 
-    doc.total_cost = total_cost
+        # Log each ingredient's cost and quantity
+        frappe.logger().info(f"Ingredient: {ingredient.get('ingredient')}, Cost: {cost}, Qty: {qty}, Total: {ingredient_cost}")
 
-    # Calculate cost per serving if servings_per_recipe is greater than zero
-    if doc.servings_per_recipe and doc.servings_per_recipe > 0:
-        doc.cost_per_serving = total_cost / doc.servings_per_recipe
+    # Log the final total cost
+    frappe.logger().info(f"Final Total Cost for {doc.name}: {total_cost}")
+
+    doc.set("total_cost", total_cost)
+
+    if doc.get("servings_per_recipe") and doc.servings_per_recipe > 0:
+        cost_per_serving = total_cost / doc.servings_per_recipe
+        doc.set("cost_per_serving", cost_per_serving)
     else:
-        doc.cost_per_serving = 0  # Avoid division by zero
+        doc.set("cost_per_serving", 0)
 
-    frappe.logger().info(f"Recipe {doc.name}: Total Cost = {total_cost}, Cost per Serving = {doc.cost_per_serving}")
-
+    frappe.msgprint(f"✅ Updated Total Cost: {doc.total_cost}, Cost per Serving: {doc.cost_per_serving}", indicator="green")
 
 @frappe.whitelist()
 def add_recipe_tags(recipe_name, tags):

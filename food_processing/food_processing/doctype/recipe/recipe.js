@@ -31,8 +31,38 @@ frappe.ui.form.on('Recipe', {
                 }
             });
         }
+    },
+    refresh: function(frm) {
+        calculate_costs(frm);
+    },
+    ingredients_add: function(frm) {
+        calculate_costs(frm);
+    },
+    ingredients_remove: function(frm) {
+        calculate_costs(frm);
+    },
+    servings_per_recipe: function(frm) {
+        calculate_costs(frm);
     }
 });
+
+function calculate_costs(frm) {
+    let total_cost = 0;
+
+    (frm.doc.ingredients || []).forEach(ingredient => {
+        let cost = ingredient.cost || 0;
+        let qty = ingredient.qty || 0;
+        total_cost += cost * qty;
+    });
+
+    frm.set_value("total_cost", total_cost);
+
+    if (frm.doc.servings_per_recipe && frm.doc.servings_per_recipe > 0) {
+        frm.set_value("cost_per_serving", total_cost / frm.doc.servings_per_recipe);
+    } else {
+        frm.set_value("cost_per_serving", 0);
+    }
+}
 
 frappe.ui.form.on('Ingredient Details', {
     substitute: function(frm, cdt, cdn) {
