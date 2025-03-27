@@ -30,6 +30,43 @@ frappe.ui.form.on('Meal Plan', {
     after_submit:function(frm){
         frappe.msgprint("Meal Plan Submitted");
         fetch_meal_ingredients(frm);
+    },
+    on_submit: function(frm) {        
+        console.log("✅ Meal Plan Submitted:", frm.doc.name);
+
+        if (!frm.doc.task) {
+            frappe.msgprint(__("No associated task found."));
+            console.warn("⚠️ No associated Task found in Meal Plan.");
+            return;
+        }
+
+        console.log("🔹 Marking Task as Completed:", frm.doc.custom_task);
+
+        // ✅ Update the Task to Completed
+        frappe.call({
+            method: "frappe.client.set_value",
+            args: {
+                doctype: "Task",
+                name: frm.doc.task,
+                fieldname: {
+                    status: "Completed",
+                    completed_on: frappe.datetime.get_today(),
+                    completed_by: frappe.session.user
+                }
+            },
+            callback: function(response) {
+                if (response.message) {
+                    console.log("✅ Task marked as Completed:", frm.doc.custom_task);
+                    frappe.msgprint(__("Task has been marked as completed."));
+                } else {
+                    frappe.msgprint(__("Failed to update task."));
+                    console.error("❌ Error marking Task as Completed:", response);
+                }
+            },
+            error: function(err) {
+                console.error("❌ API Call Failed when updating Task:", err);
+            }
+        });
     }
 });
 function render_meal_plan_table(frm) {

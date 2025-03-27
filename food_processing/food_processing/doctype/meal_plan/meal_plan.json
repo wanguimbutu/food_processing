@@ -1,5 +1,6 @@
 {
  "actions": [],
+ "allow_import": 1,
  "allow_rename": 1,
  "autoname": "naming_series:",
  "creation": "2025-03-04 16:29:19.230152",
@@ -9,6 +10,8 @@
   "naming_series",
   "column_break_cabq",
   "group_name",
+  "customer_name",
+  "task",
   "section_break_rafp",
   "small_appetite",
   "normal_appetite",
@@ -153,12 +156,24 @@
   {
    "fieldname": "column_break_cabq",
    "fieldtype": "Column Break"
+  },
+  {
+   "fetch_from": "group_name.customer_name",
+   "fieldname": "customer_name",
+   "fieldtype": "Read Only",
+   "label": "Customer Name"
+  },
+  {
+   "fieldname": "task",
+   "fieldtype": "Link",
+   "label": "Task",
+   "options": "Task"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-03-21 09:03:13.802304",
+ "modified": "2025-03-27 23:57:44.796047",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Meal Plan",
@@ -181,5 +196,6 @@
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": []
+ "states": [],
+ "track_changes": 1
 }
