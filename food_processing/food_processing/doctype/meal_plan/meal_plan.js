@@ -390,8 +390,8 @@ function validate_and_calculate(frm) {
 function fetch_meal_ingredients(frm) {
     console.log("Fetching meal ingredients...");
 
-    let total_servings = frm.doc.total_servings || 1; // Total servings for non-LSG meals
-    let total_individuals = frm.doc.total_individuals || 1; // Total individuals for calculation
+    let total_servings = frm.doc.total_servings || 1;
+    let total_individuals = frm.doc.total_individuals || 1;
     let meal_entries = frm.doc.meal_plan_entry || [];
 
     if (meal_entries.length === 0) {
@@ -399,69 +399,87 @@ function fetch_meal_ingredients(frm) {
         return;
     }
 
-    let meal_data = meal_entries.map(entry => ({
-        meal_id: entry.meal_id,
-        meal_type: entry.meal_type,
-        meal_category: entry.meal_category,  
-        selected_percentage: entry.selected_percentage || 0
-    }));
-
-    console.log("Meal Entries to fetch:", meal_data);
-
+    // ✅ Check if a Shopping List already exists
     frappe.call({
-        method: "food_processing.food_processing.doctype.meal_plan.meal_plan.fetch_ingredients",
+        method: "frappe.client.get_list",
         args: {
-            meal_data: meal_data,
-            total_servings: total_servings, // Ensure total_servings is sent
-            total_individuals: total_individuals // ✅ Now including total_individuals
+            doctype: "Shopping List",
+            filters: { "meal_plan": frm.doc.name },
+            fields: ["name"]
         },
-        callback: function(r) {
-            console.log("Fetched ingredients:", r.message);
-
-            if (!r.message || r.message.length === 0) {
-                frappe.msgprint(__('No ingredients found for the selected meals.'));
+        callback: function(existing) {
+            if (existing.message.length > 0) {
+                console.log("A shopping list already exists. Skipping creation.");
                 return;
             }
 
-            let shopping_list = r.message.map(ingredient => {
-                let qty = ingredient.qty;
-                let entry = meal_entries.find(e => e.meal_id === ingredient.meal_id);
-                
-                if (entry) {
-                    if (entry.meal_category === "LSG" && entry.selected_percentage) {
-                        qty *= entry.selected_percentage; // ✅ Adjust for LSG meals
-                    } else {
-                        qty *= total_servings; // ✅ Multiply by total servings for non-LSG meals
-                    }
-                }
+            let meal_data = meal_entries.map(entry => ({
+                meal_id: entry.meal_id,
+                meal_type: entry.meal_type,
+                meal_category: entry.meal_category,
+                selected_percentage: entry.selected_percentage || 0
+            }));
 
-                return {
-                    item_code: ingredient.ingredient,
-                    item_name: ingredient.ingredient_name,
-                    qty: qty,
-                    cost: ingredient.cost
-                };
-            });
-
-            console.log("Final Shopping List:", shopping_list);
+            console.log("Meal Entries to fetch:", meal_data);
 
             frappe.call({
-                method: "frappe.client.insert",
+                method: "food_processing.food_processing.doctype.meal_plan.meal_plan.fetch_ingredients",
                 args: {
-                    doc: {
-                        doctype: "Shopping List",
-                        shopping_details: shopping_list
-                    }
+                    meal_data: meal_data,
+                    total_servings: total_servings,
+                    total_individuals: total_individuals
                 },
-                callback: function(res) {
-                    console.log("Created Shopping List:", res.message);
-                    if (res.message) {
-                        frappe.msgprint({
-                            title: __("Success"),
-                            message: `Ingredients added to Shopping List <b>${res.message.name}</b>.`,
-                            indicator: "green"
-                        });
+                callback: function(r) {
+                    console.log("Fetched ingredients:", r.message);
+
+                    if (!r.message || r.message.length === 0) {
+                        frappe.msgprint(__('No ingredients found for the selected meals.'));
+                        return;
                     }
+
+                    let shopping_list = r.message.map(ingredient => {
+                        let qty = ingredient.qty;
+                        let entry = meal_entries.find(e => e.meal_id === ingredient.meal_id);
+                        
+                        if (entry) {
+                            if (entry.meal_category === "LSG" && entry.selected_percentage) {
+                                qty *= entry.selected_percentage;
+                            } else {
+                                qty *= total_servings;
+                            }
+                        }
+
+                        return {
+                            item_code: ingredient.ingredient,
+                            item_name: ingredient.ingredient_name,
+                            qty: qty,
+                            cost: ingredient.cost
+                        };
+                    });
+
+                    console.log("Final Shopping List:", shopping_list);
+
+                    // ✅ Insert Shopping List if one does not exist
+                    frappe.call({
+                        method: "frappe.client.insert",
+                        args: {
+                            doc: {
+                                doctype: "Shopping List",
+                                meal_plan: frm.doc.name,
+                                shopping_details: shopping_list
+                            }
+                        },
+                        callback: function(res) {
+                            console.log("Created Shopping List:", res.message);
+                            if (res.message) {
+                                frappe.msgprint({
+                                    title: __("Success"),
+                                    message: `Ingredients added to Shopping List <b>${res.message.name}</b>.`,
+                                    indicator: "green"
+                                });
+                            }
+                        }
+                    });
                 }
             });
         }
@@ -477,7 +495,6 @@ function calculate_meal_costs(frm) {
         return;
     }
 
-    // Fetch meal IDs and check if there's any meal at all
     let meal_ids = [...new Set(meal_entries.map(entry => entry.meal_id))];
 
     if (meal_ids.length === 0) {
@@ -487,6 +504,7 @@ function calculate_meal_costs(frm) {
 
     let daily_costs = {};
     let total_cost = 0;
+    let total_individuals = frm.doc.total_individuals || 1; // Ensure multiplication by number of people
 
     console.log("Fetching meal costs for:", meal_ids);
 
@@ -515,7 +533,7 @@ function calculate_meal_costs(frm) {
 
             meal_entries.forEach(entry => {
                 let meal_info = meal_cost_map[entry.meal_id] || { cost: 0, category: "" };
-                let meal_cost = meal_info.cost;
+                let meal_cost = meal_info.cost * total_individuals; // ✅ Multiply by total individuals
 
                 if (!daily_costs[entry.date]) {
                     daily_costs[entry.date] = 0;

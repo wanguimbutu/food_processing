@@ -95,7 +95,6 @@
   {
    "fieldname": "naming_series",
    "fieldtype": "Select",
-   "in_list_view": 1,
    "label": "Series",
    "no_copy": 1,
    "options": "RP-.#####.-",
@@ -106,7 +105,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-03-21 08:59:31.270060",
+ "modified": "2025-03-28 11:32:43.580315",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Recipe",
