@@ -67,26 +67,35 @@ def actual_fetch_ingredients(meal_ids, total_servings):
             recipe = frappe.get_doc("Recipe", recipe_link.recipe_name)
 
             for ingredient in recipe.ingredients:
-                ingredient_name = ingredient.ingredient_name
+                item_code = ingredient.ingredient  
                 unit = ingredient.unit_of_measure
                 qty_per_serving = float(ingredient.qty)
-                cost_per_serving = float(ingredient.cost)
-
                 final_qty = qty_per_serving * total_servings
-                final_cost = cost_per_serving * total_servings
 
-                if ingredient_name in ingredient_list:
-                    ingredient_list[ingredient_name]["qty"] += final_qty
-                    ingredient_list[ingredient_name]["cost"] += final_cost
+                item_rate = frappe.db.get_value(
+                    "Item Price",
+                    {"item_code": item_code, "price_list": "Standard Buying"},
+                    "price_list_rate"
+                )
+
+                if item_rate is None:
+                    frappe.logger().warning(f"No price found for {item_code} in Standard Buying.")
+                    item_rate = 0.0  
+
+                final_cost = item_rate * final_qty 
+
+                if item_code in ingredient_list:
+                    ingredient_list[item_code]["qty"] += final_qty
+                    ingredient_list[item_code]["cost"] += final_cost
                 else:
-                    ingredient_list[ingredient_name] = {
-                        "ingredient_name": ingredient_name,
+                    ingredient_list[item_code] = {
+                        "ingredient": item_code, 
                         "qty": final_qty,
                         "unit_of_measure": unit,
                         "cost": final_cost
                     }
 
-                frappe.logger().info(f"Updated {ingredient_name}: Qty={final_qty}, Cost={final_cost}")
+                frappe.logger().info(f"Updated {item_code}: Qty={final_qty}, Cost={final_cost}")
 
     frappe.logger().info(f"Final ingredient list: {ingredient_list}")
     return list(ingredient_list.values())
