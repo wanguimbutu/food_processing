@@ -8,8 +8,119 @@ frappe.ui.form.on('Meal Plan', {
             console.log("Fetching meal ingredients")
             fetch_meal_ingredients(frm);
         }
-        
+        frm.add_custom_button(__('Select Groups'), function() {
+            // Prompt the user to select a date range first
+            frappe.prompt([
+                {
+                    label: 'From Date',
+                    fieldname: 'from_date',
+                    fieldtype: 'Date',
+                    reqd: 1
+                },
+                {
+                    label: 'To Date',
+                    fieldname: 'to_date',
+                    fieldtype: 'Date',
+                    reqd: 1
+                }
+            ], function(date_data) {
+                // Save the selected dates to the form fields
+                frm.set_value('start_date', date_data.from_date);
+                frm.set_value('end_date', date_data.to_date);
+                frm.refresh_fields(['start_date', 'end_date']);
+
+                // Fetch open tasks for Meal Plan Allocation
+                frappe.call({
+                    method: 'frappe.client.get_list',
+                    args: {
+                        doctype: 'Task',
+                        filters: {
+                            subject: 'Meal Plan Allocation',
+                            status: 'Open'
+                        },
+                        fields: ['name', 'project']
+                    },
+                    callback: function(response) {
+                        if (response.message) {
+                            let tasks = response.message;
+                            if (tasks.length === 0) {
+                                frappe.msgprint(__('No open Meal Plan Allocation tasks found.'));
+                                return;
+                            }
+
+                            // Get unique project IDs
+                            let project_ids = [...new Set(tasks.map(task => task.project))];
+
+                            // Fetch project details within the selected date range
+                            frappe.call({
+                                method: 'frappe.client.get_list',
+                                args: {
+                                    doctype: 'Project',
+                                    filters: [
+                                        ['name', 'in', project_ids],
+                                        ['expected_start_date', '>=', date_data.from_date],
+                                        ['expected_end_date', '<=', date_data.to_date]
+                                    ],
+                                    fields: ['name', 'customer', 'custom_no_of_people']
+                                },
+                                callback: function(proj_res) {
+                                    if (proj_res.message) {
+                                        let projects = proj_res.message;
+                                        let project_map = {};
+                                        let project_options = [];
+
+                                        projects.forEach(proj => {
+                                            let label = `${proj.name} - ${proj.customer} (${proj.custom_no_of_people || 0} people)`;
+                                            project_map[label] = {
+                                                project_name: proj.name,
+                                                people: proj.custom_no_of_people || 0
+                                            };
+                                            project_options.push(label);
+                                        });
+
+                                        if (project_options.length === 0) {
+                                            frappe.msgprint(__('No projects match the selected date range.'));
+                                            return;
+                                        }
+
+                                        // Show selection dialog for projects
+                                        frappe.prompt([
+                                            {
+                                                label: 'Select Projects',
+                                                fieldname: 'selected_projects',
+                                                fieldtype: 'MultiSelect',
+                                                options: project_options.join('\n')
+                                            }
+                                        ], function(data) {
+                                            let selected_labels = data.selected_projects ? data.selected_projects.split(', ') : [];
+                                            
+                                            if (selected_labels.length > 0) {
+                                                let selected_projects = [];
+                                                let total_people = 0;
+
+                                                selected_labels.forEach(label => {
+                                                    if (project_map[label]) {
+                                                        selected_projects.push(project_map[label].project_name);
+                                                        total_people += project_map[label].people;
+                                                    }
+                                                });
+
+                                                // Set the values in the form
+                                                frm.set_value('selected_projects', selected_projects.join(', '));
+                                                frm.set_value('total_individuals', total_people);
+                                                frm.refresh_fields(['selected_projects', 'total_individuals']);
+                                            }
+                                        }, __('Select Groups'), __('Confirm'));
+                                    }
+                                }
+                            });
+                        }
+                    }
+                });
+            }, __('Select Date Range'), __('Next'));
+        });
     },
+
     small_appetite: function(frm) {
         validate_and_calculate(frm);
     },
@@ -32,7 +143,7 @@ frappe.ui.form.on('Meal Plan', {
         fetch_meal_ingredients(frm);
     },
     on_submit: function(frm) {        
-        console.log("✅ Meal Plan Submitted:", frm.doc.name);
+        /*console.log("✅ Meal Plan Submitted:", frm.doc.name);
 
         if (!frm.doc.task) {
             frappe.msgprint(__("No associated task found."));
@@ -66,9 +177,52 @@ frappe.ui.form.on('Meal Plan', {
             error: function(err) {
                 console.error("❌ API Call Failed when updating Task:", err);
             }
-        });
+        }); */
+
+        if (frm.doc.selected_projects) {
+            let selected_projects = frm.doc.selected_projects.split(', ').map(p => p.trim());
+
+            // Fetch tasks that match the projects and subject 'Meal Plan Allocation'
+            frappe.call({
+                method: 'frappe.client.get_list',
+                args: {
+                    doctype: 'Task',
+                    filters: {
+                        project: ['in', selected_projects],
+                        subject: 'Meal Plan Allocation',
+                        status: 'Open'
+                    },
+                    fields: ['name']
+                },
+                callback: function(response) {
+                    if (response.message.length > 0) {
+                        let tasks = response.message;
+
+                        // Loop through each task and update its status to 'Working'
+                        tasks.forEach(task => {
+                            frappe.call({
+                                method: 'frappe.client.set_value',
+                                args: {
+                                    doctype: 'Task',
+                                    name: task.name,  // <-- Now setting the task name correctly
+                                    fieldname: 'status',
+                                    value: 'Working'
+                                }
+                            });
+                        });
+
+                        frappe.msgprint(__('Meal Plan Allocation tasks marked as Working.'));
+                    } else {
+                        frappe.msgprint(__('No open Meal Plan Allocation tasks found to update.'));
+                    }
+                }
+            });
+        }
     }
 });
+
+
+
 function render_meal_plan_table(frm) {
     let start_date = frm.doc.start_date;
     let end_date = frm.doc.end_date;

@@ -12,6 +12,7 @@
   "group_name",
   "customer_name",
   "task",
+  "selected_projects",
   "section_break_rafp",
   "small_appetite",
   "normal_appetite",
@@ -168,12 +169,17 @@
    "fieldtype": "Link",
    "label": "Task",
    "options": "Task"
+  },
+  {
+   "fieldname": "selected_projects",
+   "fieldtype": "Small Text",
+   "label": "Selected Projects"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-03-28 11:32:27.116479",
+ "modified": "2025-04-03 13:04:40.876259",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Meal Plan",
