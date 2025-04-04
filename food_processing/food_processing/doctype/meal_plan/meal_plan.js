@@ -8,8 +8,8 @@ frappe.ui.form.on('Meal Plan', {
             console.log("Fetching meal ingredients")
             fetch_meal_ingredients(frm);
         }
+
         frm.add_custom_button(__('Select Groups'), function() {
-            // Prompt the user to select a date range first
             frappe.prompt([
                 {
                     label: 'From Date',
@@ -24,7 +24,6 @@ frappe.ui.form.on('Meal Plan', {
                     reqd: 1
                 }
             ], function(date_data) {
-                // Save the selected dates to the form fields
                 frm.set_value('start_date', date_data.from_date);
                 frm.set_value('end_date', date_data.to_date);
                 frm.refresh_fields(['start_date', 'end_date']);
@@ -48,10 +47,9 @@ frappe.ui.form.on('Meal Plan', {
                                 return;
                             }
 
-                            // Get unique project IDs
                             let project_ids = [...new Set(tasks.map(task => task.project))];
 
-                            // Fetch project details within the selected date range
+                            // Fetch projects within the selected date range
                             frappe.call({
                                 method: 'frappe.client.get_list',
                                 args: {
@@ -67,49 +65,42 @@ frappe.ui.form.on('Meal Plan', {
                                     if (proj_res.message) {
                                         let projects = proj_res.message;
                                         let project_map = {};
-                                        let project_options = [];
 
-                                        projects.forEach(proj => {
+                                        let fields = projects.map((proj, index) => {
                                             let label = `${proj.name} - ${proj.customer} (${proj.custom_no_of_people || 0} people)`;
-                                            project_map[label] = {
-                                                project_name: proj.name,
-                                                people: proj.custom_no_of_people || 0
+                                            project_map[proj.name] = proj.custom_no_of_people || 0;
+                                            
+                                            return {
+                                                label: label,
+                                                fieldname: `proj_${index}`,
+                                                fieldtype: 'Check'
                                             };
-                                            project_options.push(label);
                                         });
 
-                                        if (project_options.length === 0) {
+                                        if (fields.length === 0) {
                                             frappe.msgprint(__('No projects match the selected date range.'));
                                             return;
                                         }
 
-                                        // Show selection dialog for projects
-                                        frappe.prompt([
-                                            {
-                                                label: 'Select Projects',
-                                                fieldname: 'selected_projects',
-                                                fieldtype: 'MultiSelect',
-                                                options: project_options.join('\n')
-                                            }
-                                        ], function(data) {
-                                            let selected_labels = data.selected_projects ? data.selected_projects.split(', ') : [];
-                                            
-                                            if (selected_labels.length > 0) {
-                                                let selected_projects = [];
-                                                let total_people = 0;
+                                        // Display checkboxes for project selection
+                                        frappe.prompt(fields, function(data) {
+                                            let selected_projects = [];
+                                            let total_people = 0;
 
-                                                selected_labels.forEach(label => {
-                                                    if (project_map[label]) {
-                                                        selected_projects.push(project_map[label].project_name);
-                                                        total_people += project_map[label].people;
-                                                    }
-                                                });
+                                            Object.keys(data).forEach(fieldname => {
+                                                if (data[fieldname]) {
+                                                    let proj_name = fieldname.replace('proj_', '');
+                                                    let selected_proj = projects[proj_name].name;
+                                                    selected_projects.push(selected_proj);
+                                                    total_people += project_map[selected_proj];
+                                                }
+                                            });
 
-                                                // Set the values in the form
-                                                frm.set_value('selected_projects', selected_projects.join(', '));
-                                                frm.set_value('total_individuals', total_people);
-                                                frm.refresh_fields(['selected_projects', 'total_individuals']);
-                                            }
+                                            // Update the form fields
+                                            frm.set_value('selected_projects', selected_projects.join(', '));
+                                            frm.set_value('total_individuals', total_people);
+                                            frm.refresh_fields(['selected_projects', 'total_individuals']);
+
                                         }, __('Select Groups'), __('Confirm'));
                                     }
                                 }
