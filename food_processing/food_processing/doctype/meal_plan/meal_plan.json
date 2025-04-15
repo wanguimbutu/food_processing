@@ -32,7 +32,8 @@
   "daily_meal_costs",
   "total_meal_plan_cost",
   "section_break_46tw",
-  "amended_from"
+  "amended_from",
+  "connections_tab"
  ],
  "fields": [
   {
@@ -174,12 +175,18 @@
    "fieldname": "selected_projects",
    "fieldtype": "Small Text",
    "label": "Selected Projects"
+  },
+  {
+   "fieldname": "connections_tab",
+   "fieldtype": "Tab Break",
+   "label": "Connections",
+   "show_dashboard": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-04-03 13:04:40.876259",
+ "modified": "2025-04-15 14:45:36.591583",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Meal Plan",
