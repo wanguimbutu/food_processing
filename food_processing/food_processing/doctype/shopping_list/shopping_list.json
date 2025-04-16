@@ -7,6 +7,9 @@
  "field_order": [
   "meal_plan",
   "group_name",
+  "column_break_zmsu",
+  "selected_projects",
+  "required_by",
   "section_break_bzed",
   "shopping_details",
   "section_break_rbgm",
@@ -35,8 +38,9 @@
   },
   {
    "fieldname": "group_name",
-   "fieldtype": "Data",
-   "label": "Group Name"
+   "fieldtype": "Link",
+   "label": "Group Name",
+   "options": "Customer"
   },
   {
    "fieldname": "section_break_bzed",
@@ -47,12 +51,26 @@
    "fieldtype": "Table",
    "label": "Shopping Details",
    "options": "Shopping Details"
+  },
+  {
+   "fieldname": "column_break_zmsu",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "selected_projects",
+   "fieldtype": "Data",
+   "label": "Selected Projects"
+  },
+  {
+   "fieldname": "required_by",
+   "fieldtype": "Date",
+   "label": "Required By"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-03-17 11:00:24.855884",
+ "modified": "2025-04-16 09:37:56.533872",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Shopping List",

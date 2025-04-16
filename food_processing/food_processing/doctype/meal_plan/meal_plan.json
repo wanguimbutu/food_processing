@@ -8,6 +8,7 @@
  "engine": "InnoDB",
  "field_order": [
   "naming_series",
+  "required_by",
   "column_break_cabq",
   "group_name",
   "customer_name",
@@ -181,12 +182,17 @@
    "fieldtype": "Tab Break",
    "label": "Connections",
    "show_dashboard": 1
+  },
+  {
+   "fieldname": "required_by",
+   "fieldtype": "Date",
+   "label": "Required By"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-04-15 14:45:36.591583",
+ "modified": "2025-04-16 09:38:31.153366",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Meal Plan",

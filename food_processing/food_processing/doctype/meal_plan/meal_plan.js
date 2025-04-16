@@ -549,7 +549,10 @@ function fetch_meal_ingredients(frm) {
         method: "frappe.client.get_list",
         args: {
             doctype: "Shopping List",
-            filters: { "meal_plan": frm.doc.name },
+            filters: { "meal_plan": frm.doc.name,
+                "group_name":frm.doc.group_name,
+                "required_by":frm.doc.required_by,
+            },
             fields: ["name"]
         },
         callback: function(existing) {
@@ -622,6 +625,8 @@ function fetch_meal_ingredients(frm) {
                                     message: `Ingredients added to Shopping List <b>${res.message.name}</b>.`,
                                     indicator: "green"
                                 });
+
+                                frappe.set_route("Form", "Shopping List", res.message.name);
                             }
                         }
                     });
