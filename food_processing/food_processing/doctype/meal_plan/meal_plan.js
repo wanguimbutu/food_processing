@@ -625,9 +625,13 @@ function fetch_meal_ingredients(frm) {
                                     message: `Ingredients added to Shopping List <b>${res.message.name}</b>.`,
                                     indicator: "green"
                                 });
-
-                                frappe.set_route("Form", "Shopping List", res.message.name);
+                            
+                                if (!frm.__shopping_list_redirected) {
+                                    frm.__shopping_list_redirected = true; 
+                                    frappe.set_route("Form", "Shopping List", res.message.name);
+                                }
                             }
+                            
                         }
                     });
                 }
