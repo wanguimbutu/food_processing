@@ -9,6 +9,8 @@
  "field_order": [
   "naming_series",
   "required_by",
+  "project",
+  "packing_list",
   "column_break_cabq",
   "group_name",
   "customer_name",
@@ -187,12 +189,25 @@
    "fieldname": "required_by",
    "fieldtype": "Date",
    "label": "Required By"
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "packing_list",
+   "fieldtype": "Link",
+   "label": "Packing List",
+   "options": "Packing List",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-04-16 09:38:31.153366",
+ "modified": "2025-04-18 12:56:21.466635",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Meal Plan",
