@@ -1,9 +1,14 @@
 frappe.ui.form.on('Meal Plan', {
     refresh: function(frm) {
         setup_meal_drag_and_drop(frm);
-        render_meal_plan_table(frm);
+        render_meal_plan_table(frm)
         load_existing_meals(frm);
-    
+        
+        if (frm.doc.meal_plan_html && frm.fields_dict.meal_plan_html) {
+            console.log("Loading saved meal_plan_html:", frm.doc.meal_plan_html);
+            frm.fields_dict.meal_plan_html.$wrapper.html(frm.doc.meal_plan_html);
+        }
+
         if(frm.doc.docstatus ==1){
             console.log("Fetching meal ingredients")
             fetch_meal_ingredients(frm);
@@ -133,6 +138,20 @@ frappe.ui.form.on('Meal Plan', {
         frappe.msgprint("Meal Plan Submitted");
         fetch_meal_ingredients(frm);
     },
+    validate: function(frm) {
+        let html = frm.fields_dict.meal_plan_table.$wrapper.html();
+        console.log("Saving HTML to meal_plan_html:", html);
+    
+        frm.set_value("meal_plan_html", html);
+    
+        // Just in case, also manually inject into the HTML field wrapper
+        if (frm.fields_dict.meal_plan_html && frm.fields_dict.meal_plan_html.$wrapper) {
+            frm.fields_dict.meal_plan_html.$wrapper.html(html);
+        } else {
+            console.warn("meal_plan_html field not found or not rendered yet.");
+        }
+    },
+    
     on_submit: function(frm) {        
         /*console.log("✅ Meal Plan Submitted:", frm.doc.name);
 
@@ -267,6 +286,7 @@ function render_meal_plan_table(frm) {
 
 
     setup_meal_drag_and_drop(frm);
+    
 }
 function setup_meal_drag_and_drop(frm) {
     if (!frm.fields_dict.meal_list) return;
@@ -626,10 +646,8 @@ function fetch_meal_ingredients(frm) {
                                     indicator: "green"
                                 });
                             
-                                if (!frm.__shopping_list_redirected) {
-                                    frm.__shopping_list_redirected = true; 
-                                    frappe.set_route("Form", "Shopping List", res.message.name);
-                                }
+                                // Optionally, you can redirect to the Shopping List
+                                frappe.set_route('Form', 'Shopping List', res.message.name);
                             }
                             
                         }

@@ -29,6 +29,7 @@
   "section_break_axdj",
   "meal_list",
   "meal_plan_table",
+  "meal_plan_html",
   "section_break_vrxk",
   "meal_plan_entry",
   "section_break_armn",
@@ -200,14 +201,20 @@
    "fieldname": "packing_list",
    "fieldtype": "Link",
    "label": "Packing List",
-   "options": "Packing List",
+   "options": "Packing List"
+  },
+  {
+   "fieldname": "meal_plan_html",
+   "fieldtype": "HTML",
+   "hidden": 1,
+   "label": "Meal Plan",
    "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-04-18 12:56:21.466635",
+ "modified": "2025-04-19 13:27:50.965484",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Meal Plan",
