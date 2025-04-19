@@ -647,7 +647,7 @@ function fetch_meal_ingredients(frm) {
                                 });
                             
                                 // Optionally, you can redirect to the Shopping List
-                                frappe.set_route('Form', 'Shopping List', res.message.name);
+                               //frappe.set_route('Form', 'Shopping List', res.message.name);
                             }
                             
                         }
