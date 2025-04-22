@@ -1,0 +1,44 @@
+{
+ "add_total_row": 0,
+ "columns": [],
+ "creation": "2025-04-22 09:43:34.694379",
+ "disabled": 0,
+ "docstatus": 0,
+ "doctype": "Report",
+ "filters": [
+  {
+   "fieldname": "name",
+   "fieldtype": "Link",
+   "label": "Shopping List",
+   "mandatory": 1,
+   "options": "Shopping List",
+   "wildcard_filter": 1
+  }
+ ],
+ "idx": 0,
+ "is_standard": "Yes",
+ "letter_head": "test",
+ "letterhead": null,
+ "modified": "2025-04-22 15:40:13.937281",
+ "modified_by": "Administrator",
+ "module": "Food Processing",
+ "name": "Required Shopping Items",
+ "owner": "Administrator",
+ "prepared_report": 0,
+ "query": "def execute(filters=None):\n    frappe.msgprint(f\"Filters received: {filters}\")\n\n    shopping_list_id = filters.get(\"shopping_list\")\n    if not shopping_list_id:\n        frappe.throw(\"Please select a Shopping List.\")\n\n\n    columns = [\n        {\"label\": \"Item Code\", \"fieldname\": \"item_code\", \"fieldtype\": \"Link\", \"options\": \"Item\"},\n        {\"label\": \"Item Name\", \"fieldname\": \"item_name\", \"fieldtype\": \"Data\"},\n        {\"label\": \"Requested Qty\", \"fieldname\": \"requested_qty\", \"fieldtype\": \"Float\"},\n        {\"label\": \"Available Qty\", \"fieldname\": \"available_qty\", \"fieldtype\": \"Float\"},\n        {\"label\": \"Shortage\", \"fieldname\": \"shortage\", \"fieldtype\": \"Float\"}\n    ]\n\n    data = []\n\n    # Fetch items from Shopping Details based on the selected shopping list\n    shopping_items = frappe.get_all(\n        \"Shopping Details\",\n        filters={\"parent\": shopping_list_id},\n        fields=[\"item_code\", \"item_name\", \"qty\"]\n    )\n\n    for item in shopping_items:\n        item_code = item.item_code\n        item_name = item.item_name\n        requested_qty = item.qty\n\n        # Get stock quantity from Stock Ledger Entry\n        stock_qty = frappe.db.sql(\"\"\"\n            SELECT SUM(actual_qty) AS actual_qty\n            FROM `tabStock Ledger Entry`\n            WHERE item_code = %s\n        \"\"\", (item_code,), as_dict=True)[0].actual_qty or 0\n\n        # Calculate the shortage\n        shortage = requested_qty - stock_qty\n\n        # Append data for each item\n        data.append({\n            \"item_code\": item_code,\n            \"item_name\": item_name,\n            \"requested_qty\": requested_qty,\n            \"available_qty\": stock_qty,\n            \"shortage\": shortage\n        })\n\n    return columns, data\n",
+ "ref_doctype": "Shopping List",
+ "report_name": "Required Shopping Items",
+ "report_type": "Script Report",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Item Manager"
+  },
+  {
+   "role": "Administrator"
+  }
+ ],
+ "timeout": 0
+}
