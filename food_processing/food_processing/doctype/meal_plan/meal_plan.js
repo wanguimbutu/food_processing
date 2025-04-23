@@ -9,11 +9,7 @@ frappe.ui.form.on('Meal Plan', {
             frm.fields_dict.meal_plan_html.$wrapper.html(frm.doc.meal_plan_html);
         }
 
-        if(frm.doc.docstatus ==1){
-            console.log("Fetching meal ingredients")
-            fetch_meal_ingredients(frm);
-        }
-
+        
         frm.add_custom_button(__('Select Groups'), function() {
             frappe.prompt([
                 {
@@ -138,32 +134,19 @@ frappe.ui.form.on('Meal Plan', {
         frappe.msgprint("Meal Plan Submitted");
         fetch_meal_ingredients(frm);
     },
-    validate: function(frm) {
-        let html = frm.fields_dict.meal_plan_table.$wrapper.html();
-        console.log("Saving HTML to meal_plan_html:", html);
-    
-        frm.set_value("meal_plan_html", html);
-    
-        // Just in case, also manually inject into the HTML field wrapper
-        if (frm.fields_dict.meal_plan_html && frm.fields_dict.meal_plan_html.$wrapper) {
-            frm.fields_dict.meal_plan_html.$wrapper.html(html);
-        } else {
-            console.warn("meal_plan_html field not found or not rendered yet.");
-        }
-    },
     
     on_submit: function(frm) {        
-        /*console.log("✅ Meal Plan Submitted:", frm.doc.name);
+        console.log("Meal Plan Submitted:", frm.doc.name);
 
         if (!frm.doc.task) {
             frappe.msgprint(__("No associated task found."));
-            console.warn("⚠️ No associated Task found in Meal Plan.");
+            console.warn(" No associated Task found in Meal Plan.");
             return;
         }
 
         console.log("🔹 Marking Task as Completed:", frm.doc.custom_task);
 
-        // ✅ Update the Task to Completed
+        //  Update the Task to Completed
         frappe.call({
             method: "frappe.client.set_value",
             args: {
@@ -177,22 +160,20 @@ frappe.ui.form.on('Meal Plan', {
             },
             callback: function(response) {
                 if (response.message) {
-                    console.log("✅ Task marked as Completed:", frm.doc.custom_task);
+                    console.log(" Task marked as Completed:", frm.doc.custom_task);
                     frappe.msgprint(__("Task has been marked as completed."));
                 } else {
                     frappe.msgprint(__("Failed to update task."));
-                    console.error("❌ Error marking Task as Completed:", response);
+                    console.error(" Error marking Task as Completed:", response);
                 }
             },
             error: function(err) {
-                console.error("❌ API Call Failed when updating Task:", err);
+                console.error(" API Call Failed when updating Task:", err);
             }
-        }); */
+        }); 
 
         if (frm.doc.selected_projects) {
             let selected_projects = frm.doc.selected_projects.split(', ').map(p => p.trim());
-
-            // Fetch tasks that match the projects and subject 'Meal Plan Allocation'
             frappe.call({
                 method: 'frappe.client.get_list',
                 args: {
@@ -214,7 +195,7 @@ frappe.ui.form.on('Meal Plan', {
                                 method: 'frappe.client.set_value',
                                 args: {
                                     doctype: 'Task',
-                                    name: task.name,  // <-- Now setting the task name correctly
+                                    name: task.name,  
                                     fieldname: 'status',
                                     value: 'Working'
                                 }
@@ -228,6 +209,33 @@ frappe.ui.form.on('Meal Plan', {
                 }
             });
         }
+        if(frm.doc.docstatus ==1){
+            console.log("Fetching meal ingredients")
+            fetch_meal_ingredients(frm);
+        }
+        if (!frm.doc.packing_list) {
+            frappe.call({
+                method: 'frappe.client.insert',
+                args: {
+                    doc: {
+                        doctype: 'Packing List',
+                        meal_plan: frm.doc.name 
+                    }
+                },
+                callback: function(r) {
+                    if (r.message) {
+                        const packing_list_name = r.message.name;
+
+                        frm.set_value('packing_list', packing_list_name);
+
+                        frm.save();
+                    }
+                }
+            });
+
+            frappe.validated = false;
+        }
+
     }
 });
 
@@ -351,7 +359,7 @@ function setup_meal_drag_and_drop(frm) {
                             return;
                         }
 
-                        if (uniqueMeals.has(meal.name)) return; // ✅ Skip duplicates
+                        if (uniqueMeals.has(meal.name)) return; 
                         uniqueMeals.add(meal.name);
 
                         let item = $("<div>")
@@ -461,11 +469,11 @@ function add_meal_to_plan(frm, meal_id, meal_name, date, meal_type) {
                     ], function(values) {
                         row.selected_percentage = values.selected_percentage;
                         frm.refresh_field("meal_plan_entry");
-                        calculate_meal_costs(frm);  // ✅ Recalculate costs after percentage input
+                        calculate_meal_costs(frm);  
                     }, "Enter Percentage for LSG Meal", "Submit");
                 } else {
                     frm.refresh_field("meal_plan_entry");
-                    calculate_meal_costs(frm);  // ✅ Ensure calculation runs for non-LSG meals
+                    calculate_meal_costs(frm);  
                 }
             }                
         }
@@ -482,7 +490,6 @@ function remove_meal_from_plan(frm, meal_id, date, meal_type) {
     frm.doc.meal_plan_entry = updatedEntries;
     frm.refresh_field("meal_plan_entry");
 
-    // ✅ Run cost calculation only after update
     calculate_meal_costs(frm);
 }
 
@@ -564,7 +571,7 @@ function fetch_meal_ingredients(frm) {
         return;
     }
 
-    // ✅ Check if a Shopping List already exists
+    // Check if a Shopping List already exists
     frappe.call({
         method: "frappe.client.get_list",
         args: {
@@ -627,7 +634,7 @@ function fetch_meal_ingredients(frm) {
 
                     console.log("Final Shopping List:", shopping_list);
 
-                    // ✅ Insert Shopping List if one does not exist
+                    // Insert Shopping List if one does not exist
                     frappe.call({
                         method: "frappe.client.insert",
                         args: {

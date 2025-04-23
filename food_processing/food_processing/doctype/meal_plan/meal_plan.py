@@ -4,18 +4,12 @@
 import frappe
 from frappe.model.document import Document
 import json
+import datetime
+from collections import defaultdict
+
 
 class MealPlan(Document):
-    def on_submit(self):
-        if not self.packing_list or not self.meal_plan_html:
-            return
-
-        packing_list = frappe.get_doc("Packing List", self.packing_list)
-        packing_list.meal_plan_table = self.meal_plan_html
-        packing_list.save(ignore_permissions=True)
-        frappe.msgprint(f"Meal Plan table copied to Packing List '{packing_list.name}'.")
-        frappe.msgprint(f"Saved HTML: <br><br>{self.meal_plan_html}")
-
+   
     pass
 
 @frappe.whitelist()
@@ -110,4 +104,4 @@ def actual_fetch_ingredients(meal_ids, total_servings):
     frappe.logger().info(f"Final ingredient list: {ingredient_list}")
     return list(ingredient_list.values())
 
-    
+
