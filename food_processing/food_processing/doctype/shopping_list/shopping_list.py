@@ -6,7 +6,27 @@ from frappe.model.document import Document
 
 
 class ShoppingList(Document):
-	pass
+     def on_submit(self):
+        if not self.packing_list:
+            frappe.throw("Packing List not linked!")
+
+        packing_list_doc = frappe.get_doc("Packing List", self.packing_list)
+
+        # Clear existing items (optional)
+        packing_list_doc.items = []
+
+        for item in self.shopping_details:
+                packing_list_doc.append("shopping_list", {
+                "item_code": item.item_code,
+                "item_name": item.item_name,
+                "qty": item.qty,
+                "cost": item.cost
+         })
+
+        packing_list_doc.save()
+        frappe.msgprint("Items copied to Packing List.")
+
+pass
 
 @frappe.whitelist()
 def create_material_request(shopping_list_name):
@@ -38,3 +58,5 @@ def create_material_request(shopping_list_name):
 
     mr.insert(ignore_permissions=True)
     return mr.name
+
+

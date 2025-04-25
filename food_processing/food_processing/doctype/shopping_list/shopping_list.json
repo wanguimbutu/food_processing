@@ -7,6 +7,7 @@
  "field_order": [
   "meal_plan",
   "group_name",
+  "packing_list",
   "column_break_zmsu",
   "selected_projects",
   "required_by",
@@ -65,12 +66,18 @@
    "fieldname": "required_by",
    "fieldtype": "Date",
    "label": "Required By"
+  },
+  {
+   "fieldname": "packing_list",
+   "fieldtype": "Link",
+   "label": "Packing List",
+   "options": "Packing List"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-04-16 09:37:56.533872",
+ "modified": "2025-04-25 16:23:40.991070",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Shopping List",

@@ -642,7 +642,8 @@ function fetch_meal_ingredients(frm) {
                                 meal_plan: frm.doc.name,
                                 shopping_details: shopping_list,
                                 group_name:frm.doc.group_name,
-                                required_by: frm.doc.required_by
+                                required_by: frm.doc.required_by,
+                                packing_list:frm.doc.packing_list
                             }
                         },
                         callback: function(res) {
