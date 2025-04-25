@@ -577,8 +577,7 @@ function fetch_meal_ingredients(frm) {
         args: {
             doctype: "Shopping List",
             filters: { "meal_plan": frm.doc.name,
-                "group_name":frm.doc.group_name,
-                "required_by":frm.doc.required_by,
+               
             },
             fields: ["name"]
         },
@@ -641,7 +640,9 @@ function fetch_meal_ingredients(frm) {
                             doc: {
                                 doctype: "Shopping List",
                                 meal_plan: frm.doc.name,
-                                shopping_details: shopping_list
+                                shopping_details: shopping_list,
+                                group_name:frm.doc.group_name,
+                                required_by: frm.doc.required_by
                             }
                         },
                         callback: function(res) {
