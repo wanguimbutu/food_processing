@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"bxcobwJQdw\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Meals And Recipes</span>\",\"col\":12}},{\"id\":\"ivQor-FXKZ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Recipes\",\"col\":3}},{\"id\":\"Et8MpfAjla\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Meal Plan\",\"col\":3}},{\"id\":\"aYHwycSmFd\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Meals List\",\"col\":3}},{\"id\":\"9XAWS-IEgW\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Shopping List\",\"col\":3}}]",
+ "content": "[{\"id\":\"bxcobwJQdw\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Meals And Recipes</span>\",\"col\":12}},{\"id\":\"ivQor-FXKZ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Recipes\",\"col\":3}},{\"id\":\"Et8MpfAjla\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Meal Plan\",\"col\":3}},{\"id\":\"aYHwycSmFd\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Meals List\",\"col\":3}},{\"id\":\"9XAWS-IEgW\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Shopping List\",\"col\":3}},{\"id\":\"LoK3Ri12lc\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"fnLgJGI2Se\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Pending Tasks</b></span>\",\"col\":12}},{\"id\":\"4mTdx7yJRM\",\"type\":\"quick_list\",\"data\":{\"quick_list_name\":\"Pending Tasks\",\"col\":11}},{\"id\":\"2ym3EZwhwm\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"N7b45MVTgz\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reports</b></span>\",\"col\":12}},{\"id\":\"qRfEbngSwq\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Required Shopping Items\",\"col\":3}}]",
  "creation": "2025-03-17 15:02:24.387625",
  "custom_blocks": [],
  "docstatus": 0,
@@ -11,27 +11,32 @@
  "idx": 0,
  "indicator_color": "green",
  "is_hidden": 0,
- "label": "Meals And Recipes",
+ "label": "MEALS AND RECIPES",
  "links": [],
- "modified": "2025-03-17 15:10:34.374404",
+ "modified": "2025-04-28 11:59:05.248166",
  "modified_by": "Administrator",
  "module": "Food Processing",
- "name": "Meals And Recipes",
+ "name": "MEALS AND RECIPES",
  "number_cards": [],
  "owner": "Administrator",
  "parent_page": "",
  "public": 1,
- "quick_lists": [],
+ "quick_lists": [
+  {
+   "document_type": "ToDo",
+   "label": "Pending Tasks",
+   "quick_list_filter": "[[\"ToDo\",\"status\",\"=\",\"Open\",false]]"
+  }
+ ],
  "roles": [],
  "sequence_id": 41.0,
  "shortcuts": [
   {
-   "color": "Blue",
+   "color": "Grey",
    "doc_view": "List",
-   "label": "Shopping List",
-   "link_to": "Shopping List",
-   "stats_filter": "[]",
-   "type": "DocType"
+   "label": "Required Shopping Items",
+   "link_to": "Required Shopping Items",
+   "type": "Report"
   },
   {
    "color": "Green",
@@ -46,7 +51,15 @@
    "doc_view": "List",
    "label": "Meal Plan",
    "link_to": "Meal Plan",
-   "stats_filter": "[]",
+   "stats_filter": "[[\"Meal Plan\",\"docstatus\",\"=\",\"1\",false]]",
+   "type": "DocType"
+  },
+  {
+   "color": "Blue",
+   "doc_view": "List",
+   "label": "Shopping List",
+   "link_to": "Shopping List",
+   "stats_filter": "[[\"Shopping List\",\"docstatus\",\"=\",\"1\",false]]",
    "type": "DocType"
   },
   {
@@ -58,5 +71,5 @@
    "type": "DocType"
   }
  ],
- "title": "Meals And Recipes"
+ "title": "MEALS AND RECIPES"
 }
