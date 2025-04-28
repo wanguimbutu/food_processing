@@ -23,6 +23,8 @@
   "column_break_xgkf",
   "total_individuals",
   "total_servings",
+  "dietary_specifications_section",
+  "diets",
   "add_recipes_section",
   "start_date",
   "end_date",
@@ -209,12 +211,24 @@
    "hidden": 1,
    "label": "Meal Plan",
    "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "dietary_specifications_section",
+   "fieldtype": "Section Break",
+   "label": "Dietary Specifications"
+  },
+  {
+   "fieldname": "diets",
+   "fieldtype": "Table",
+   "label": "Diets",
+   "options": "Diet"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-04-19 13:27:50.965484",
+ "modified": "2025-04-28 10:38:42.553478",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Meal Plan",
