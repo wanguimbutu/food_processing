@@ -19,9 +19,8 @@
  "fields": [
   {
    "fieldname": "meal_id",
-   "fieldtype": "Select",
-   "label": "Meal ID",
-   "options": "\nBREAKFAST-.####.-\nLUNCH-.####.-\nDINNER-.####.-\nSNACKS-.####.-"
+   "fieldtype": "Data",
+   "label": "Meal ID"
   },
   {
    "fieldname": "meal_name",
@@ -69,7 +68,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-04-03 14:33:59.836079",
+ "modified": "2025-04-28 10:00:49.446133",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Meals",
