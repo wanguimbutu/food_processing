@@ -11,12 +11,12 @@
  "idx": 0,
  "indicator_color": "green",
  "is_hidden": 0,
- "label": "Meals and Recipes",
+ "label": "MEALS AND RECIPES",
  "links": [],
- "modified": "2025-04-28 11:59:05.248166",
+ "modified": "2025-04-29 08:47:40.123515",
  "modified_by": "Administrator",
  "module": "Food Processing",
- "name": "Meals and Recipes",
+ "name": "MEALS AND RECIPES",
  "number_cards": [],
  "owner": "Administrator",
  "parent_page": "",
@@ -28,7 +28,11 @@
    "quick_list_filter": "[[\"ToDo\",\"status\",\"=\",\"Open\",false]]"
   }
  ],
- "roles": [],
+ "roles": [
+  {
+   "role": "All"
+  }
+ ],
  "sequence_id": 41.0,
  "shortcuts": [
   {
@@ -71,5 +75,5 @@
    "type": "DocType"
   }
  ],
- "title": "Meals and Recipes"
+ "title": "MEALS AND RECIPES"
 }
