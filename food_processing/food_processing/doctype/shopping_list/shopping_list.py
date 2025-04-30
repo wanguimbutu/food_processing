@@ -8,15 +8,16 @@ from frappe.model.document import Document
 class ShoppingList(Document):
      def on_submit(self):
         if not self.packing_list:
-            frappe.throw("Packing List not linked!")
+            # Packing List not linked, skip processing
+            return
 
         packing_list_doc = frappe.get_doc("Packing List", self.packing_list)
 
-        # Clear existing items (optional)
-        packing_list_doc.items = []
+        # Clear existing shopping_list items (optional)
+        packing_list_doc.shopping_list = []
 
         for item in self.shopping_details:
-                packing_list_doc.append("shopping_list", {
+            packing_list_doc.append("shopping_list", {
                 "item_code": item.item_code,
                 "item_name": item.item_name,
                 "qty": item.qty,

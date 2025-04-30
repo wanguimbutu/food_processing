@@ -137,6 +137,7 @@ frappe.ui.form.on('Meal Plan', {
     
     on_submit: function(frm) {        
         console.log("Meal Plan Submitted:", frm.doc.name);
+        fetch_meal_ingredients(frm);
 
         if (!frm.doc.task) {
             frappe.msgprint(__("No associated task found."));
@@ -209,32 +210,31 @@ frappe.ui.form.on('Meal Plan', {
                 }
             });
         }
-        if(frm.doc.docstatus ==1){
+       /* if(frm.doc.docstatus ==1){
             console.log("Fetching meal ingredients")
             fetch_meal_ingredients(frm);
-        }
-        if (!frm.doc.packing_list) {
+        }*/
+        if (frm.doc.packing_list) {
             frappe.call({
-                method: 'frappe.client.insert',
+                method: 'frappe.client.set_value',
                 args: {
-                    doc: {
-                        doctype: 'Packing List',
-                        meal_plan: frm.doc.name 
+                    doctype: 'Packing List',
+                    name: frm.doc.packing_list,
+                    fieldname: {
+                        meal_plan: frm.doc.name
                     }
                 },
                 callback: function(r) {
-                    if (r.message) {
-                        const packing_list_name = r.message.name;
-
-                        frm.set_value('packing_list', packing_list_name);
-
+                    if (!r.exc) {
                         frm.save();
                     }
                 }
             });
-
+        
             frappe.validated = false;
         }
+        
+
 
     }
 });

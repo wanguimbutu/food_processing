@@ -23,5 +23,12 @@ frappe.ui.form.on('Shopping List', {
                 });
             }, __('Actions'));
         }
-    }
+        if (frm.doc.docstatus === 1) {
+            frm.add_custom_button('View Required Shopping Items', () => {
+              frappe.set_route('query-report', 'Required Shopping Items', {
+                shopping_list: frm.doc.name
+              });
+            });
+          }
+        }
 });
