@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "field:recipe_name",
+ "autoname": "naming_series:",
  "creation": "2025-01-17 12:25:31.434299",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -105,11 +105,11 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-04-29 11:00:12.957264",
+ "modified": "2025-04-30 13:13:12.184367",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Recipe",
- "naming_rule": "By fieldname",
+ "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
   {
