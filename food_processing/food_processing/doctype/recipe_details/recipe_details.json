@@ -7,6 +7,7 @@
  "engine": "InnoDB",
  "field_order": [
   "recipe_name",
+  "recipe",
   "cost_per_recipe"
  ],
  "fields": [
@@ -24,12 +25,19 @@
    "in_list_view": 1,
    "label": "Cost per Recipe",
    "read_only": 1
+  },
+  {
+   "fetch_from": "recipe_name.recipe_name",
+   "fieldname": "recipe",
+   "fieldtype": "Read Only",
+   "in_list_view": 1,
+   "label": "Recipe"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-03-15 12:03:19.443745",
+ "modified": "2025-04-30 12:37:26.826563",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Recipe Details",
