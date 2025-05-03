@@ -299,25 +299,41 @@ function render_meal_plan_table(frm) {
 function setup_meal_drag_and_drop(frm) {
     if (!frm.fields_dict.meal_list) return;
 
-    let meal_container = $(frm.fields_dict.meal_list.wrapper);
-    
-    meal_container.find(".draggable-meal").remove(); 
+    const meal_container = $(frm.fields_dict.meal_list.wrapper);
+    meal_container.find(".draggable-meal").remove();
 
-    let previouslySelected = localStorage.getItem("selected_meal_category") || "All";
+    let currentPage = 1;
+    const itemsPerPage = 5;
+    let currentSort = "asc";
+    let selectedCategory = localStorage.getItem("selected_meal_category") || "All";
 
+    // Inject UI elements once
     if (!meal_container.find("#meal_category_filter").length) {
-        let filter_html = `
+        const html = `
             <div style="margin-bottom: 10px;">
-                <label for="meal_category_filter"><b>Filter by Category:</b></label>
+                <label><b>Filter by Category:</b></label>
                 <select id="meal_category_filter" style="width: 100%; padding: 5px;">
                     <option value="All">All</option>
                 </select>
             </div>
+            <div style="margin: 10px 0;">
+                <label><b>Sort by:</b></label>
+                <select id="meal_sort" style="width: 100%; padding: 5px;">
+                    <option value="asc">Name A-Z</option>
+                    <option value="desc">Name Z-A</option>
+                </select>
+            </div>
+            <div id="pagination_controls" style="margin-top:10px; display:flex; justify-content:space-between;">
+                <button id="prev_page">Previous</button>
+                <span id="page_info">Page 1</span>
+                <button id="next_page">Next</button>
+            </div>
         `;
-        meal_container.append(filter_html);
+        meal_container.append(html);
     }
 
-    let filterDropdown = $("#meal_category_filter");
+    const filterDropdown = $("#meal_category_filter");
+    const sortDropdown = $("#meal_sort");
 
     if (filterDropdown.find("option").length === 1) {
         frappe.call({
@@ -326,42 +342,44 @@ function setup_meal_drag_and_drop(frm) {
                 doctype: "Meal Category",
                 fields: ["name"]
             },
-            callback: function(response) {
-                if (response.message) {
-                    response.message.forEach(cat => {
+            callback: function (res) {
+                if (res.message) {
+                    res.message.forEach(cat => {
                         filterDropdown.append(`<option value="${cat.name}">${cat.name}</option>`);
                     });
-                    filterDropdown.val(previouslySelected);
+                    filterDropdown.val(selectedCategory);
                 }
             }
         });
     } else {
-        filterDropdown.val(previouslySelected);
+        filterDropdown.val(selectedCategory);
     }
 
-    function loadFilteredMeals() {
-        let selected_category = filterDropdown.val();
-        localStorage.setItem("selected_meal_category", selected_category);
-        meal_container.find(".draggable-meal").remove(); 
+    function loadMeals() {
+        selectedCategory = filterDropdown.val();
+        localStorage.setItem("selected_meal_category", selectedCategory);
+        currentSort = sortDropdown.val();
+
+        const filters = {};
+        if (selectedCategory !== "All") {
+            filters["meal_category"] = selectedCategory;
+        }
 
         frappe.call({
             method: "frappe.client.get_list",
             args: {
                 doctype: "Meals",
-                fields: ["name", "meal_name", "meal_category"]
+                fields: ["name", "meal_name", "meal_category"],
+                filters: filters,
+                limit_start: (currentPage - 1) * itemsPerPage,
+                limit_page_length: itemsPerPage,
+                order_by: `meal_name ${currentSort}`
             },
-            callback: function(response) {
-                if (response.message) {
-                    let uniqueMeals = new Set(); 
+            callback: function (res) {
+                meal_container.find(".draggable-meal").remove();
 
-                    response.message.forEach(meal => {
-                        if (selected_category !== "All" && meal.meal_category !== selected_category) {
-                            return;
-                        }
-
-                        if (uniqueMeals.has(meal.name)) return; 
-                        uniqueMeals.add(meal.name);
-
+                if (res.message && res.message.length > 0) {
+                    res.message.forEach(meal => {
                         let item = $("<div>")
                             .text(meal.meal_name)
                             .attr("data-meal", meal.name)
@@ -377,65 +395,85 @@ function setup_meal_drag_and_drop(frm) {
                             })
                             .attr("draggable", true);
 
-                        item.on("dragstart", function(event) {
+                        item.on("dragstart", function (event) {
                             event.originalEvent.dataTransfer.setData("meal", $(this).attr("data-meal"));
                             event.originalEvent.dataTransfer.setData("meal_name", $(this).text());
                         });
 
                         meal_container.append(item);
                     });
+
+                    
+                    $("#page_info").text(`Page ${currentPage}`);
+                    $("#prev_page").prop("disabled", currentPage === 1);
+                    $("#next_page").prop("disabled", res.message.length < itemsPerPage);
+                } else {
+                    $("#page_info").text("No meals found");
+                    $("#next_page").prop("disabled", true);
                 }
             }
         });
     }
 
-    
     if (!frm.__meals_loaded) {
-        loadFilteredMeals();
+        loadMeals();
         frm.__meals_loaded = true;
     }
 
-    filterDropdown.off("change").on("change", function() {
-        loadFilteredMeals();
+    filterDropdown.off("change").on("change", function () {
+        currentPage = 1;
+        loadMeals();
     });
-    // Attach drop events
-    let meal_types = ["Breakfast", "Lunch", "Dinner", "Snack & Beverage", "Dessert"];
 
-    meal_types.forEach(type => {
-        $(`td[data-meal-type="${type}"]`).on("dragover", function(event) {
+    sortDropdown.off("change").on("change", function () {
+        currentPage = 1;
+        loadMeals();
+    });
+
+    $("#prev_page").on("click", function () {
+        if (currentPage > 1) {
+            currentPage--;
+            loadMeals();
+        }
+    });
+
+    $("#next_page").on("click", function () {
+        currentPage++;
+        loadMeals();
+    });
+
+    // Setup drop zones
+    ["Breakfast", "Lunch", "Dinner", "Snack & Beverage", "Dessert"].forEach(type => {
+        $(`td[data-meal-type="${type}"]`).on("dragover", function (event) {
             event.preventDefault();
         });
 
-        $(`td[data-meal-type]`).on("drop", function(event) {
+        $(`td[data-meal-type]`).on("drop", function (event) {
             event.preventDefault();
             let meal_id = event.originalEvent.dataTransfer.getData("meal");
             let meal_name = event.originalEvent.dataTransfer.getData("meal_name");
             let selected_date = $(event.target).closest("tr").attr("data-date");
             let meal_type = $(event.target).attr("data-meal-type");
-        
+
             if (meal_id && meal_name) {
-                if ($(event.target).find(`[data-meal-id="${meal_id}"]`).length > 0) {
-                    return;
-                }
-        
+                if ($(event.target).find(`[data-meal-id="${meal_id}"]`).length > 0) return;
+
                 let mealItem = $(`
-                    <div class="meal-item" data-meal-id="${meal_id}" style="padding:5px; background:#f2f2f2; margin:3px; position:relative; display:flex; justify-content:space-between; align-items:center;">
+                    <div class="meal-item" data-meal-id="${meal_id}" style="padding:5px; background:#f2f2f2; margin:3px; display:flex; justify-content:space-between;">
                         <span>${meal_name}</span>
-                        <button class="remove-meal" style="border:none; background:red; color:white; padding:2px 5px; cursor:pointer;">X</button>
+                        <button class="remove-meal" style="background:red; color:white; border:none; padding:2px 5px;">X</button>
                     </div>
                 `);
-        
-                mealItem.find(".remove-meal").on("click", function() {
+
+                mealItem.find(".remove-meal").on("click", function () {
                     mealItem.remove();
                     remove_meal_from_plan(frm, meal_id, selected_date, meal_type);
                 });
 
                 $(event.target).append(mealItem);
-    
                 add_meal_to_plan(frm, meal_id, meal_name, selected_date, meal_type);
             }
         });
-        
     });
 }
 
