@@ -104,4 +104,28 @@ def actual_fetch_ingredients(meal_ids, total_servings):
     frappe.logger().info(f"Final ingredient list: {ingredient_list}")
     return list(ingredient_list.values())
 
+@frappe.whitelist()
+def get_meals_by_category(category=None, limit_start=0, limit_page_length=5, order_by="meal_name asc"):
+    filters = {}
+    if category and category != "All":
+        meal_names = frappe.get_all("Meal Plan Category", 
+            filters={
+                "meal_category": category,
+                "parenttype": "Meals"
+            }, 
+            fields=["parent"]
+        )
+        meal_names = list(set([m["parent"] for m in meal_names]))
+        if not meal_names:
+            return []
 
+        filters["name"] = ["in", meal_names]
+
+    meals = frappe.get_all("Meals",
+        filters=filters,
+        fields=["name", "meal_name"],
+        order_by=order_by,
+        limit_start=limit_start,
+        limit_page_length=limit_page_length
+    )
+    return meals

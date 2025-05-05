@@ -366,11 +366,9 @@ function setup_meal_drag_and_drop(frm) {
         }
 
         frappe.call({
-            method: "frappe.client.get_list",
+            method: "food_processing.food_processing.doctype.meal_plan.meal_plan.get_meals_by_category",
             args: {
-                doctype: "Meals",
-                fields: ["name", "meal_name", "meal_category"],
-                filters: filters,
+                category: selectedCategory,
                 limit_start: (currentPage - 1) * itemsPerPage,
                 limit_page_length: itemsPerPage,
                 order_by: `meal_name ${currentSort}`
@@ -442,7 +440,7 @@ function setup_meal_drag_and_drop(frm) {
         loadMeals();
     });
 
-    // Setup drop zones
+    //drop zones
     ["Breakfast", "Lunch", "Dinner", "Snack & Beverage", "Dessert"].forEach(type => {
         $(`td[data-meal-type="${type}"]`).on("dragover", function (event) {
             event.preventDefault();
@@ -479,11 +477,11 @@ function setup_meal_drag_and_drop(frm) {
 
 function add_meal_to_plan(frm, meal_id, meal_name, date, meal_type) {
     frappe.call({
-        method: "frappe.client.get_value",
+        method: "frappe.client.get_list",
         args: {
-            doctype: "Meals",
-            filters: { name: meal_id },
-            fieldname: ["meal_category"]
+            doctype: "Meal Plan Category",
+            filters: { parent: meal_id },
+            fields: ["meal_category"]
         },
         callback: function(response) {
             if (response.message) {

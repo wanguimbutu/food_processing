@@ -8,7 +8,7 @@
   "meal_id",
   "meal_name",
   "column_break_iinm",
-  "meal_category",
+  "meal_plan_category",
   "section_break_osut",
   "recipes",
   "section_break_tkxy",
@@ -20,6 +20,7 @@
   {
    "fieldname": "meal_id",
    "fieldtype": "Data",
+   "hidden": 1,
    "label": "Meal ID"
   },
   {
@@ -30,12 +31,6 @@
   {
    "fieldname": "column_break_iinm",
    "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "meal_category",
-   "fieldtype": "Link",
-   "label": "Meal Category",
-   "options": "Meal Category"
   },
   {
    "fieldname": "section_break_osut",
@@ -64,11 +59,17 @@
    "fieldtype": "Currency",
    "label": "Total Meal Cost",
    "read_only": 1
+  },
+  {
+   "fieldname": "meal_plan_category",
+   "fieldtype": "Table",
+   "label": "Meal Plan Category",
+   "options": "Meal Plan Category"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-04-29 10:56:34.913608",
+ "modified": "2025-05-05 12:27:21.065252",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Meals",
