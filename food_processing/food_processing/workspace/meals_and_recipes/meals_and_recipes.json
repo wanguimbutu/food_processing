@@ -11,12 +11,12 @@
  "idx": 0,
  "indicator_color": "green",
  "is_hidden": 0,
- "label": "MEALS AND RECIPES",
+ "label": "Meals And Recipes",
  "links": [],
  "modified": "2025-04-29 08:47:40.123515",
  "modified_by": "Administrator",
  "module": "Food Processing",
- "name": "MEALS AND RECIPES",
+ "name": "Meals And Recipes",
  "number_cards": [],
  "owner": "Administrator",
  "parent_page": "",
@@ -75,5 +75,5 @@
    "type": "DocType"
   }
  ],
- "title": "MEALS AND RECIPES"
+ "title": "Meals And Recipes"
 }

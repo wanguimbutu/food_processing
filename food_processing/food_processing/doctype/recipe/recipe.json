@@ -105,7 +105,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-04-30 13:13:12.184367",
+ "modified": "2025-05-05 12:32:51.838071",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Recipe",
@@ -185,8 +185,10 @@
    "write": 1
   }
  ],
+ "show_title_field_in_link": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
+ "title_field": "recipe_name",
  "track_changes": 1
 }
