@@ -359,59 +359,72 @@ function setup_meal_drag_and_drop(frm) {
         selectedCategory = filterDropdown.val();
         localStorage.setItem("selected_meal_category", selectedCategory);
         currentSort = sortDropdown.val();
-
-        const filters = {};
-        if (selectedCategory !== "All") {
-            filters["meal_category"] = selectedCategory;
+    
+        let filters = [];
+    
+        if (selectedCategory === "All") {
+            frappe.call({
+                method: "frappe.client.get_list",
+                args: {
+                    doctype: "Meals",
+                    fields: ["name", "meal_name","meal_id"],
+                    limit_start: (currentPage - 1) * itemsPerPage,
+                    limit_page_length: itemsPerPage,
+                    order_by: `meal_name ${currentSort}`,
+                },
+                callback: render_meals
+            });
+        } else {
+            frappe.call({
+                method: "food_processing.food_processing.doctype.meal_plan.meal_plan.get_meals_by_category",
+                args: {
+                    category: selectedCategory,
+                    start: (currentPage - 1) * itemsPerPage,
+                    page_length: itemsPerPage,
+                    sort_order: currentSort
+                },
+                callback: render_meals
+            });
         }
-
-        frappe.call({
-            method: "food_processing.food_processing.doctype.meal_plan.meal_plan.get_meals_by_category",
-            args: {
-                category: selectedCategory,
-                limit_start: (currentPage - 1) * itemsPerPage,
-                limit_page_length: itemsPerPage,
-                order_by: `meal_name ${currentSort}`
-            },
-            callback: function (res) {
-                meal_container.find(".draggable-meal").remove();
-
-                if (res.message && res.message.length > 0) {
-                    res.message.forEach(meal => {
-                        let item = $("<div>")
-                            .text(meal.meal_name)
-                            .attr("data-meal", meal.name)
-                            .addClass("draggable-meal")
-                            .css({
-                                "border": "1px solid #ccc",
-                                "padding": "5px",
-                                "margin": "5px 0",
-                                "background-color": "#ffffff",
-                                "cursor": "grab",
-                                "width": "80%",
-                                "text-align": "center"
-                            })
-                            .attr("draggable", true);
-
-                        item.on("dragstart", function (event) {
-                            event.originalEvent.dataTransfer.setData("meal", $(this).attr("data-meal"));
-                            event.originalEvent.dataTransfer.setData("meal_name", $(this).text());
-                        });
-
-                        meal_container.append(item);
+        
+        function render_meals(res) {
+            meal_container.find(".draggable-meal").remove();
+        
+            if (res.message && res.message.length > 0) {
+                res.message.forEach(meal => {
+                    let item = $("<div>")
+                        .text(meal.meal_name)
+                        .attr("data-meal", meal.meal_id)
+                        .addClass("draggable-meal")
+                        .css({
+                            "border": "1px solid #ccc",
+                            "padding": "5px",
+                            "margin": "5px 0",
+                            "background-color": "#ffffff",
+                            "cursor": "grab",
+                            "width": "80%",
+                            "text-align": "center"
+                        })
+                        .attr("draggable", true);
+        
+                    item.on("dragstart", function (event) {
+                        event.originalEvent.dataTransfer.setData("meal", $(this).attr("data-meal"));
+                        event.originalEvent.dataTransfer.setData("meal_name", $(this).text());
                     });
-
-                    
-                    $("#page_info").text(`Page ${currentPage}`);
-                    $("#prev_page").prop("disabled", currentPage === 1);
-                    $("#next_page").prop("disabled", res.message.length < itemsPerPage);
-                } else {
-                    $("#page_info").text("No meals found");
-                    $("#next_page").prop("disabled", true);
-                }
+        
+                    meal_container.append(item);
+                });
+        
+                $("#page_info").text(`Page ${currentPage}`);
+                $("#prev_page").prop("disabled", currentPage === 1);
+                $("#next_page").prop("disabled", res.message.length < itemsPerPage);
+            } else {
+                $("#page_info").text("No meals found");
+                $("#next_page").prop("disabled", true);
             }
-        });
-    }
+        }
+    }        
+    
 
     if (!frm.__meals_loaded) {
         loadMeals();
@@ -440,7 +453,7 @@ function setup_meal_drag_and_drop(frm) {
         loadMeals();
     });
 
-    //drop zones
+    // Setup drop zones
     ["Breakfast", "Lunch", "Dinner", "Snack & Beverage", "Dessert"].forEach(type => {
         $(`td[data-meal-type="${type}"]`).on("dragover", function (event) {
             event.preventDefault();
@@ -477,44 +490,39 @@ function setup_meal_drag_and_drop(frm) {
 
 function add_meal_to_plan(frm, meal_id, meal_name, date, meal_type) {
     frappe.call({
-        method: "frappe.client.get_list",
-        args: {
-            doctype: "Meal Plan Category",
-            filters: { parent: meal_id },
-            fields: ["meal_category"]
-        },
+        method: "food_processing.food_processing.doctype.meal_plan.meal_plan.is_lsg_meal",
+        args: { meal_id: meal_id },
         callback: function(response) {
-            if (response.message) {
-                let meal_category = response.message.meal_category;
-                let row = frm.add_child("meal_plan_entry");
-                row.meal_id = meal_id;
-                row.meal_name = meal_name;
-                row.meal_type = meal_type;
-                row.date = date;
+            let is_lsg = response.message;
 
-                // If LSG, prompt user for percentage BEFORE calculating costs
-                if (meal_category === "LSG") {
-                    frappe.prompt([
-                        {
-                            label: "Selected Percentage",
-                            fieldname: "selected_percentage",
-                            fieldtype: "Float",
-                            reqd: 1,
-                            description: "Enter the percentage as a decimal (e.g., 0.2 for 20%)"
-                        }
-                    ], function(values) {
-                        row.selected_percentage = values.selected_percentage;
-                        frm.refresh_field("meal_plan_entry");
-                        calculate_meal_costs(frm);  
-                    }, "Enter Percentage for LSG Meal", "Submit");
-                } else {
+            let row = frm.add_child("meal_plan_entry");
+            row.meal_id = meal_id;
+            row.meal_name = meal_name;
+            row.meal_type = meal_type;
+            row.date = date;
+
+            if (is_lsg) {
+                frappe.prompt([
+                    {
+                        label: "Selected Percentage",
+                        fieldname: "selected_percentage",
+                        fieldtype: "Float",
+                        reqd: 1,
+                        description: "Enter the percentage as a decimal (e.g., 0.2 for 20%)"
+                    }
+                ], function(values) {
+                    row.selected_percentage = values.selected_percentage;
                     frm.refresh_field("meal_plan_entry");
                     calculate_meal_costs(frm);  
-                }
-            }                
+                }, "Enter Percentage for LSG Meal", "Submit");
+            } else {
+                frm.refresh_field("meal_plan_entry");
+                calculate_meal_costs(frm);  
+            }
         }
     });
 }
+
 
 function remove_meal_from_plan(frm, meal_id, date, meal_type) {
     let entries = frm.doc.meal_plan_entry || [];
@@ -584,13 +592,11 @@ function validate_and_calculate(frm) {
 
     let total_entered = small + normal + large;
 
-    // Ensure the total does not exceed the given total_individuals
     if (total_entered > total_individuals) {
         frappe.msgprint(__('The sum of small, normal, and large appetite individuals cannot exceed Total Individuals (' + total_individuals + '). Please adjust the values.'));
         return;
     }
 
-    // Calculate total servings
     let total_servings = (small * 0.75) + (normal * 1) + (large * 1.25);
     frm.set_value('total_servings', total_servings);
 }
@@ -607,7 +613,6 @@ function fetch_meal_ingredients(frm) {
         return;
     }
 
-    // Check if a Shopping List already exists
     frappe.call({
         method: "frappe.client.get_list",
         args: {
@@ -669,7 +674,6 @@ function fetch_meal_ingredients(frm) {
 
                     console.log("Final Shopping List:", shopping_list);
 
-                    // Insert Shopping List if one does not exist
                     frappe.call({
                         method: "frappe.client.insert",
                         args: {
@@ -691,7 +695,7 @@ function fetch_meal_ingredients(frm) {
                                     indicator: "green"
                                 });
                             
-                                // Optionally, you can redirect to the Shopping List
+                            
                                //frappe.set_route('Form', 'Shopping List', res.message.name);
                             }
                             
@@ -721,57 +725,58 @@ function calculate_meal_costs(frm) {
 
     let daily_costs = {};
     let total_cost = 0;
-    let total_individuals = frm.doc.total_individuals || 1; // Ensure multiplication by number of people
+    let total_individuals = frm.doc.total_individuals || 1; 
 
     console.log("Fetching meal costs for:", meal_ids);
 
     frappe.call({
-        method: "frappe.client.get_list",
+        method: "food_processing.food_processing.doctype.meal_plan.meal_plan.get_meal_cost_data",
         args: {
-            doctype: "Meals",
-            filters: { "name": ["in", meal_ids] },
-            fields: ["name", "total_meal_cost", "meal_category"]
+            meal_ids: meal_ids
         },
         callback: function(response) {
+            console.log("API Response: ", response);
+    
             if (!response.message || response.message.length === 0) {
                 frappe.msgprint(__('No valid meal costs found. Please check meal selections.'));
                 return;
             }
-
+    
             let meal_cost_map = {};
+    
             response.message.forEach(meal => {
-                meal_cost_map[meal.name] = {
+                meal_cost_map[meal.meal_id] = {
                     cost: meal.total_meal_cost || 0,
-                    category: meal.meal_category
+                    category: meal.category || "Unknown"  
                 };
             });
-
+    
             console.log("Meal Cost Map:", meal_cost_map);
-
+    
             meal_entries.forEach(entry => {
-                let meal_info = meal_cost_map[entry.meal_id] || { cost: 0, category: "" };
-                let meal_cost = meal_info.cost * total_individuals; // ✅ Multiply by total individuals
-
+                let meal_info = meal_cost_map[entry.meal_id] || { cost: 0, category: "Unknown" };
+                let meal_cost = meal_info.cost * total_individuals;
+    
                 if (!daily_costs[entry.date]) {
                     daily_costs[entry.date] = 0;
                 }
                 daily_costs[entry.date] += meal_cost;
                 total_cost += meal_cost;
             });
-
+    
             console.log("Daily Costs Calculated:", daily_costs);
-
+    
             frm.clear_table("daily_meal_costs");
             Object.keys(daily_costs).forEach(date => {
                 let row = frm.add_child("daily_meal_costs");
                 row.date = date;
                 row.meal_cost = daily_costs[date];
             });
-
+    
             frm.set_value("total_meal_plan_cost", total_cost);
-
+    
             frm.refresh_field("daily_meal_costs");
             frm.refresh_field("total_meal_plan_cost");
         }
     });
-}
+}    

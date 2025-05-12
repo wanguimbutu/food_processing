@@ -105,27 +105,54 @@ def actual_fetch_ingredients(meal_ids, total_servings):
     return list(ingredient_list.values())
 
 @frappe.whitelist()
-def get_meals_by_category(category=None, limit_start=0, limit_page_length=5, order_by="meal_name asc"):
-    filters = {}
-    if category and category != "All":
-        meal_names = frappe.get_all("Meal Plan Category", 
-            filters={
-                "meal_category": category,
-                "parenttype": "Meals"
-            }, 
-            fields=["parent"]
-        )
-        meal_names = list(set([m["parent"] for m in meal_names]))
-        if not meal_names:
-            return []
+def get_meals_by_category(category, start=0, page_length=5, sort_order="asc"):
+    start = int(start)
+    page_length = int(page_length)
+    sort_order = "ASC" if sort_order.lower() == "asc" else "DESC"
 
-        filters["name"] = ["in", meal_names]
+    query = f"""
+        SELECT DISTINCT m.name, m.meal_name, m.meal_id
+        FROM `tabMeals` m
+        INNER JOIN `tabMeal Plan Category` c ON c.parent = m.name
+        WHERE c.category = %s
+        ORDER BY m.meal_name {sort_order}
+        LIMIT %s OFFSET %s
+    """
 
-    meals = frappe.get_all("Meals",
-        filters=filters,
-        fields=["name", "meal_name"],
-        order_by=order_by,
-        limit_start=limit_start,
-        limit_page_length=limit_page_length
+    return frappe.db.sql(query, (category, page_length, start), as_dict=True)
+
+@frappe.whitelist()
+def is_lsg_meal(meal_id):
+    result = frappe.db.exists(
+        "Meal Plan Category",
+        {"parent": meal_id, "category": "LSG"}
     )
-    return meals
+    return bool(result)
+
+@frappe.whitelist()
+def get_meal_cost_data(meal_ids):
+    import json
+    if isinstance(meal_ids, str):
+        meal_ids = json.loads(meal_ids)
+
+    meal_data = []
+
+    meals = frappe.get_all(
+        'Meals',
+        filters={'meal_id': ['in', meal_ids]},
+        fields=['name', 'meal_id', 'total_meal_cost']
+    )
+
+    for meal in meals:
+        meal_doc = frappe.get_doc('Meals', meal.name)
+        categories = [row.category for row in meal_doc.meal_plan_category]  
+
+        category = categories[0] if categories else "Uncategorized"
+
+        meal_data.append({
+            'meal_id': meal.meal_id,
+            'total_meal_cost': meal.total_meal_cost,
+            'category': category
+        })
+
+    return meal_data

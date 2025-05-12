@@ -6,21 +6,21 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "meal_category"
+  "category"
  ],
  "fields": [
   {
-   "fieldname": "meal_category",
+   "fieldname": "category",
    "fieldtype": "Link",
    "in_list_view": 1,
-   "label": "Meal Category",
+   "label": "Category",
    "options": "Meal Category"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-05-05 11:39:42.587648",
+ "modified": "2025-05-08 14:19:17.647936",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Meal Plan Category",

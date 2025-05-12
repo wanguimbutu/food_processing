@@ -1,7 +1,7 @@
 {
  "charts": [],
- "content": "[{\"id\":\"bxcobwJQdw\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Meals And Recipes</span>\",\"col\":12}},{\"id\":\"ivQor-FXKZ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Recipes\",\"col\":3}},{\"id\":\"Et8MpfAjla\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Meal Plan\",\"col\":3}},{\"id\":\"aYHwycSmFd\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Meals List\",\"col\":3}},{\"id\":\"9XAWS-IEgW\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Shopping List\",\"col\":3}},{\"id\":\"LoK3Ri12lc\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"fnLgJGI2Se\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Pending Tasks</b></span>\",\"col\":12}},{\"id\":\"4mTdx7yJRM\",\"type\":\"quick_list\",\"data\":{\"quick_list_name\":\"Pending Tasks\",\"col\":11}},{\"id\":\"2ym3EZwhwm\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"N7b45MVTgz\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reports</b></span>\",\"col\":12}},{\"id\":\"qRfEbngSwq\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Required Shopping Items\",\"col\":3}}]",
- "creation": "2025-03-17 15:02:24.387625",
+ "content": "[{\"id\":\"qD0tsFS9br\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Meals And Recipes</span>\",\"col\":12}},{\"id\":\"rrs74mV12M\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Recipes\",\"col\":3}},{\"id\":\"JyRKhYSarj\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Shopping List\",\"col\":3}},{\"id\":\"-wGFCw4yhL\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Meals\",\"col\":3}},{\"id\":\"boxSWdLL8U\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Meal Plan\",\"col\":3}},{\"id\":\"LshP_-4ysT\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"tY09xfwaog\",\"type\":\"quick_list\",\"data\":{\"quick_list_name\":\"Pending Tasks\",\"col\":11}},{\"id\":\"uBqyme2bb-\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"8ZHyMqnY1t\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reports &amp; Masters</b></span>\",\"col\":12}},{\"id\":\"4orbkVGJ04\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Required Shopping Items\",\"col\":3}}]",
+ "creation": "2025-05-06 08:34:42.366493",
  "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
@@ -13,7 +13,7 @@
  "is_hidden": 0,
  "label": "Meals And Recipes",
  "links": [],
- "modified": "2025-04-29 08:47:40.123515",
+ "modified": "2025-05-07 10:17:18.647658",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Meals And Recipes",
@@ -33,17 +33,10 @@
    "role": "All"
   }
  ],
- "sequence_id": 41.0,
+ "sequence_id": 43.0,
  "shortcuts": [
   {
-   "color": "Grey",
-   "doc_view": "List",
-   "label": "Required Shopping Items",
-   "link_to": "Required Shopping Items",
-   "type": "Report"
-  },
-  {
-   "color": "Green",
+   "color": "Red",
    "doc_view": "List",
    "label": "Recipes",
    "link_to": "Recipe",
@@ -51,28 +44,35 @@
    "type": "DocType"
   },
   {
-   "color": "Pink",
-   "doc_view": "List",
-   "label": "Meal Plan",
-   "link_to": "Meal Plan",
-   "stats_filter": "[[\"Meal Plan\",\"docstatus\",\"=\",\"1\",false]]",
-   "type": "DocType"
-  },
-  {
-   "color": "Blue",
+   "color": "Orange",
    "doc_view": "List",
    "label": "Shopping List",
    "link_to": "Shopping List",
-   "stats_filter": "[[\"Shopping List\",\"docstatus\",\"=\",\"1\",false]]",
+   "stats_filter": "[]",
    "type": "DocType"
   },
   {
-   "color": "Red",
+   "color": "Cyan",
    "doc_view": "List",
-   "label": "Meals List",
+   "label": "Meals",
    "link_to": "Meals",
    "stats_filter": "[]",
    "type": "DocType"
+  },
+  {
+   "color": "Green",
+   "doc_view": "List",
+   "label": "Meal Plan",
+   "link_to": "Meal Plan",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Required Shopping Items",
+   "link_to": "Required Shopping Items",
+   "type": "Report"
   }
  ],
  "title": "Meals And Recipes"
