@@ -8,6 +8,7 @@
   "meal_plan",
   "group_name",
   "packing_list",
+  "meal_plan_link",
   "column_break_zmsu",
   "selected_projects",
   "required_by",
@@ -72,12 +73,17 @@
    "fieldtype": "Link",
    "label": "Packing List",
    "options": "Packing List"
+  },
+  {
+   "fieldname": "meal_plan_link",
+   "fieldtype": "Small Text",
+   "label": "Meal Plan Link"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-04-29 10:57:56.391239",
+ "modified": "2025-05-14 15:53:39.380437",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Shopping List",

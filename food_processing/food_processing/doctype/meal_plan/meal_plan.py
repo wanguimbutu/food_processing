@@ -62,7 +62,19 @@ def actual_fetch_ingredients(meal_ids, total_servings):
     ingredient_list = {}
 
     for meal_id in meal_ids:
-        meal = frappe.get_doc("Meals", meal_id)
+        meal_name = frappe.get_value("Meals", {"meal_id": meal_id}, "name")
+
+        if not meal_name:
+            # If meal_name is still None, log a warning and continue to the next
+            frappe.logger().warning(f"Meal with meal_id {meal_id} not found in Meals. Skipping.")
+            continue
+
+        try:
+            meal = frappe.get_doc("Meals", meal_name)
+        except frappe.DoesNotExistError:
+            frappe.logger().warning(f"Meal with name {meal_name} not found. Skipping.")
+            continue  # Skip this meal if it can't be found
+
         if not meal.recipes:
             frappe.logger().warning(f"No recipes linked to meal {meal_id}. Skipping.")
             continue  # Avoid crashing on missing recipes
@@ -103,6 +115,7 @@ def actual_fetch_ingredients(meal_ids, total_servings):
 
     frappe.logger().info(f"Final ingredient list: {ingredient_list}")
     return list(ingredient_list.values())
+
 
 @frappe.whitelist()
 def get_meals_by_category(category, start=0, page_length=5, sort_order="asc"):
@@ -156,3 +169,155 @@ def get_meal_cost_data(meal_ids):
         })
 
     return meal_data
+
+@frappe.whitelist()
+def check_meal_plan_overlap(meal_plan_name, start_date, end_date):
+    current_plan = frappe.get_doc("Meal Plan", meal_plan_name)
+
+    overlapping_names = frappe.get_all(
+        "Meal Plan",
+        filters={
+            "name": ["!=", meal_plan_name],
+            "start_date": ["<=", end_date],
+            "end_date": [">=", start_date],
+            "docstatus": 1
+        },
+        pluck="name"
+    )
+
+    if not overlapping_names:
+        return {"message": "No overlapping meal plans."}
+
+    for name in overlapping_names:
+        overlapping_doc = frappe.get_doc("Meal Plan", name)
+
+        # Copy HTML table
+        if overlapping_doc.meal_plan_html:
+            current_plan.meal_plan_html = overlapping_doc.meal_plan_html
+
+        # Copy Meal Plan Entries
+        existing_entries = {
+            (entry.date, entry.meal_type): entry
+            for entry in current_plan.meal_plan_entry
+        }
+
+        for entry in overlapping_doc.meal_plan_entry:
+            if start_date <= str(entry.date) <= end_date:
+                key = (entry.date, entry.meal_type)
+                if key not in existing_entries:
+                    current_plan.append("meal_plan_entry", {
+                        "date": entry.date,
+                        "meal_id": entry.meal_id,
+                        "meal_name": entry.meal_name,
+                        "meal_type": entry.meal_type
+                })
+
+        # You can break if you want only the first match
+        break
+
+    current_plan.save(ignore_permissions=True)
+    populate_daily_meal_costs(current_plan)
+    populate_shopping_list_from_meal_plan(current_plan)
+
+
+    return {"message": "Meal plan data copied from overlapping plan."}
+
+def populate_daily_meal_costs(plan_doc):
+    # Clear existing costs
+    plan_doc.set("daily_meal_costs", [])
+
+    # Map to hold total cost per date
+    cost_per_date = {}
+
+    # Get total servings
+    total_servings = plan_doc.total_servings or 1
+
+    # Cache meal costs
+    meal_cost_map = {}
+    meal_ids = list({e.meal_id for e in plan_doc.meal_plan_entry})
+    if meal_ids:
+        meal_docs = frappe.get_all("Meals", filters={"meal_id": ["in", meal_ids]}, fields=["meal_id", "total_meal_cost"])
+        meal_cost_map = {m.meal_id: m.total_meal_cost for m in meal_docs}
+
+    # Accumulate daily costs
+    for entry in plan_doc.meal_plan_entry:
+        meal_cost = meal_cost_map.get(entry.meal_id, 0)
+        cost = meal_cost * total_servings
+        cost_per_date[entry.date] = cost_per_date.get(entry.date, 0) + cost
+        # Debug: Log cost calculation for each entry
+        frappe.logger().info(f"Processing {entry.meal_id} on {entry.date}: Cost per meal = {meal_cost}, Servings = {total_servings}, Total Cost = {cost}")
+
+    # Fill daily_meal_costs child table
+    total_plan_cost = 0  # Initialize the total meal plan cost variable
+    for date, total_cost in sorted(cost_per_date.items()):
+        plan_doc.append("daily_meal_costs", {
+            "date": date,
+            "meal_cost": total_cost
+        })
+        total_plan_cost += total_cost  # Accumulate the total meal plan cost
+        # Debug: Log what is being appended to the daily_meal_costs
+        frappe.logger().info(f"Appending total cost for {date}: {total_cost}")
+
+    # Update the total meal plan cost field
+    plan_doc.total_meal_plan_cost = total_plan_cost
+    frappe.logger().info(f"Total meal plan cost updated: {total_plan_cost}")
+
+    # Save the updated document to ensure the changes are persisted
+    plan_doc.save(ignore_permissions=True)
+    # Debug: Log successful save
+    frappe.logger().info(f"Meal Plan {plan_doc.name} updated with daily costs and total meal plan cost.")
+
+def populate_shopping_list_from_meal_plan(plan_doc):
+    """
+    Populates the Shopping List from the meals in the given Meal Plan document.
+    """
+    total_individuals = plan_doc.total_individuals or 1
+    total_servings = plan_doc.total_servings or 1
+
+    # Step 1: Prepare meal data for reusing fetch logic
+    meal_data = []
+    for entry in plan_doc.meal_plan_entry:
+        meal_data.append({
+            "meal_id": entry.meal_id,
+            "selected_percentage": entry.selected_percentage or 0  # Only used for LSG
+        })
+
+    # Step 2: Reuse logic from fetch_ingredients
+    ingredient_list = fetch_ingredients(
+        meal_data=json.dumps(meal_data),
+        total_individuals=total_individuals,
+        total_servings=total_servings
+    )
+
+    # Step 3: Write to Shopping List table
+    for ingredient in ingredient_list:
+        existing = frappe.get_all(
+            "Shopping List",
+            filters={
+                "meal_plan_link": plan_doc.name,
+                "item_code": ingredient["ingredient"]
+            },
+            fields=["name"]
+        )
+
+        if existing:
+            # Update quantity and cost
+            shopping_doc = frappe.get_doc("Shopping List", existing[0].name)
+            shopping_doc.qty = ingredient["qty"]
+            shopping_doc.cost = ingredient["cost"]
+            shopping_doc.unit_of_measure = ingredient["unit_of_measure"]
+            shopping_doc.save(ignore_permissions=True)
+            frappe.logger().info(f"Updated Shopping List item {ingredient['ingredient']}")
+        else:
+            # Insert new entry
+            frappe.get_doc({
+                "doctype": "Shopping List",
+                "item_code": ingredient["ingredient"],
+                "qty": ingredient["qty"],
+                "unit_of_measure": ingredient["unit_of_measure"],
+                "cost": ingredient["cost"],
+                "meal_plan_link": plan_doc.name
+            }).insert(ignore_permissions=True)
+            frappe.logger().info(f"Created Shopping List item {ingredient['ingredient']}")
+
+    frappe.logger().info(f"Shopping list populated for meal plan {plan_doc.name}.")

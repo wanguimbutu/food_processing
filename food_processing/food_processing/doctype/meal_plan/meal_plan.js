@@ -111,6 +111,29 @@ frappe.ui.form.on('Meal Plan', {
                 });
             }, __('Select Date Range'), __('Next'));
         });
+        frm.add_custom_button(__('Check Overlapping Plans'), function() {
+            if (!frm.doc.start_date || !frm.doc.end_date) {
+                frappe.msgprint(__('Please set both Start Date and End Date before checking.'));
+                return;
+            }
+
+            frappe.call({
+                method: "food_processing.food_processing.doctype.meal_plan.meal_plan.check_meal_plan_overlap",
+                args: {
+                    meal_plan_name: frm.doc.name,
+                    start_date: frm.doc.start_date,
+                    end_date: frm.doc.end_date
+                },
+                callback: function(r) {
+                    if (!r.exc) {
+                        frappe.msgprint(r.message || "Updated from overlapping meal plan.");
+                        frm.reload_doc();  // Refresh the form with copied data
+                    }
+                }
+            });
+            
+            
+        }).addClass("btn-secondary");
     },
 
     small_appetite: function(frm) {
