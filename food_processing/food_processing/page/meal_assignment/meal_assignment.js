@@ -5,16 +5,66 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
 		single_column: true
 	});
 
+   
+
 	let currentDate = frappe.datetime.nowdate();
     let container = $('<div class="meal-assignment-container p-4 overflow-auto"></div>').appendTo(page.body);
-
+    currentMonday = getMonday(new Date());
+    
+    page.set_primary_action('Submit Meal Plan', function() {
+        submitMealPlanForWeek(currentMonday); // Call your submit function
+    }, 'check');
+    
     function getMonday(date) {
         let d = new Date(date);
         let day = d.getDay(),
             diff = d.getDate() - day + (day === 0 ? -6 : 1);
         return new Date(d.setDate(diff));
     }
+    function submitMealPlanForWeek(mondayDate) {
+        const mondayStr = frappe.datetime.str_to_user(frappe.datetime.obj_to_str(mondayDate));
+    
+        frappe.call({
+            method: 'food_processing.food_processing.page.meal_assignment.meal_assignment.submit_meal_plan',
+            args: {
+                monday: mondayStr
+            },
+            callback: function(r) {
+                if (r.message === 'submitted') {
+                    frappe.msgprint(__('Meal Plan submitted successfully'));
+                } else if (r.message === 'not_found') {
+                    frappe.msgprint(__('No Meal Plan found for this week'));
+                } else {
+                    frappe.msgprint(__('Error submitting Meal Plan'));
+                }
+            }
+        });
+    }
+    
+    function saveMealAssignment(assignments) {
+        
+        const small_appetite = parseInt(document.getElementById('servings-small')?.value) || 0;
+        const normal_appetite = parseInt(document.getElementById('servings-normal')?.value) || 0;
+        const large_appetite = parseInt(document.getElementById('servings-large')?.value) || 0;
 
+    // Add appetite values to the assignment object
+            assignments.small_appetite = small_appetite;
+            assignments.normal_appetite = normal_appetite;
+            assignments.large_appetite = large_appetite;
+        frappe.call({
+            method: "food_processing.food_processing.page.meal_assignment.meal_assignment.save_meal_assignment",
+            args: {
+                assignments_json: JSON.stringify(assignments),
+               
+            },
+            callback: function(r) {
+                if (r.message === "OK") {
+                    frappe.msgprint("Meal assignment saved");
+                }
+            }
+        });
+    }
+    
     function formatDate(date) {
         return frappe.datetime.obj_to_str(date);
     }
@@ -39,6 +89,27 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
         return color;
     }
 
+    function updateTotalPeople(taskData, monday) {
+        let total = 0;
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+    
+        taskData.forEach(entry => {
+            const start = new Date(entry.exp_start_date);
+            const end = new Date(entry.exp_end_date);
+    
+            if (end >= monday && start <= sunday) {
+                total += parseInt(entry.custom_no_of_people || 0);
+            }
+        });
+    
+        console.log("Final total:", total);
+        $('#total-people').text(total);
+    }
+    
+    
+    
+
     function renderWeekView(baseDate) {
         container.empty();
 
@@ -57,6 +128,32 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
             </div>
         `);
         container.append(nav);
+
+        // Week summary section
+        const summary = $(`
+            <div id="week-summary" class="p-4 bg-white border rounded shadow mb-4">
+            <div class="flex flex-col sm:flex-row flex-wrap gap-4 items-start sm:items-center justify-between">
+                <div class="text-sm font-medium">
+                    Total People This Week: <span id="total-people" class="font-semibold text-blue-600">0</span>
+                </div>
+
+                <div class="flex flex-wrap gap-4 items-center text-sm">
+                    <label class="flex items-center">Small:
+                        <input type="number" id="servings-small" class="border rounded px-2 py-1 w-16 ml-1" min="0" value="0" />
+                    </label>
+                    <label class="flex items-center">Normal:
+                        <input type="number" id="servings-normal" class="border rounded px-2 py-1 w-16 ml-1" min="0" value="0" />
+                    </label>
+                    <label class="flex items-center">Large:
+                        <input type="number" id="servings-large" class="border rounded px-2 py-1 w-16 ml-1" min="0" value="0" />
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        `);
+        container.append(summary);
+
 
         $('#prev-week').click(() => {
             let prevWeek = new Date(monday);
@@ -89,9 +186,9 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
             },
             callback: function(r) {
                 const tasks = r.message || [];
-
                 const customerMap = {};
                 const assignedColors = {};
+                updateTotalPeople(tasks, monday);
 
                 tasks.forEach(task => {
                     const customer = task.custom_customer;
@@ -187,15 +284,33 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
 								
 								cell.on('drop', function (e) {
 									e.preventDefault();
-									$(this).removeClass('ring ring-blue-400');
+									$(this).removeClass('ring ring-blue-400' );
 									const mealName = e.originalEvent.dataTransfer.getData('text/plain');
+                                    const meal = allMeals.find(m => m.meal_name === mealName);
+                                    const meal_id = meal?.name || "";
+                                    const cellDate = formatDate(d); 
+                                    const mealType = meals[j]; 
+                                    const customer = 
 									$(this).html(`
 										<div class="flex items-center justify-between px-1">
 											<span class="truncate">${mealName}</span>
 											<button class="text-red-500 text-xs remove-meal">&times;</button>
 										</div>
 									`);
+                                    saveMealAssignment({
+                                        date: cellDate,
+                                        meal_type: mealType,
+                                        meal_id: meal_id,
+                                        meal_name: mealName,
+                                        customer: typeof customer === "string" ? customer : customer.textContent || $(customer).text(),
+
+                                        small_appetite: parseInt($("#servings-small").val()) || 0,
+                                        normal_appetite: parseInt($("#servings-normal").val()) || 0,
+                                        large_appetite: parseInt($("#servings-large").val()) || 0,
+                                        total_individuals: parseInt($('#total-people').text()) || 0
 								});
+                            });
+
 								cell.on('click', function () {
 									if (!selectedMeal) return; 
 									
@@ -227,176 +342,175 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
 
                 const scrollContainer = $('<div style="overflow-x:auto; width:100%;"></div>');
                 scrollContainer.append(table);
+
+                
                 container.append(scrollContainer);
 
 				
-let mealsPerPage = 5;
-let currentMealPage = 1;
-let allMeals = [];
-let filteredMeals = [];
-let selectedCategory = null;
+                let mealsPerPage = 5;
+                let currentMealPage = 1;
+                let allMeals = [];
+                let filteredMeals = [];
+                let selectedCategory = null;
 
-const mealContainer = $('<div class="mt-6"></div>');
-container.append(mealContainer);
+                const mealContainer = $('<div class="mt-6"></div>');
+                container.append(mealContainer);
 
-let selectedMeal = null; 
-
-
-function renderMealCards(meals) {
-    const grid = $('<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 mt-4"></div>');
-    meals.forEach(meal => {
-        let categories = (meal.meal_plan_category || []).map(cat => cat.category).join(', ') || 'Uncategorized';
-        const card = $(`
-            <div class="rounded border bg-white text-xs p-2 h-16 overflow-hidden shadow hover:shadow-md transition cursor-pointer"
-                draggable="true"
-                data-meal="${meal.meal_name}">
-                <div class="font-semibold truncate" title="${meal.meal_name}">${meal.meal_name}</div>
-                <div class="text-gray-500 truncate" title="${categories}">${categories}</div>
-            </div>
-        `);
-
-        
-        card.on('dragstart', function (e) {
-            e.originalEvent.dataTransfer.setData('text/plain', $(this).data('meal'));
-        });
-
-        
-        card.on('click', function () {
-            if (selectedMeal === $(this).data('meal')) {
-                
-                selectedMeal = null;
-                card.removeClass('border-blue-500 ring ring-blue-300');
-            } else {
-                selectedMeal = $(this).data('meal');
-                $('.grid div').removeClass('border-blue-500 ring ring-blue-300'); 
-                card.addClass('border-blue-500 ring ring-blue-300');
-            }
-        });
-
-        grid.append(card);
-    });
-    return grid;
-}
+                let selectedMeal = null; 
 
 
-function renderMealsPage(page) {
-    mealContainer.empty();
+                function renderMealCards(meals) {
+                    const grid = $('<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 mt-4"></div>');
+                    meals.forEach(meal => {
+                        let categories = (meal.meal_plan_category || []).map(cat => cat.category).join(', ') || 'Uncategorized';
+                        const card = $(`
+                            <div class="rounded border bg-white text-xs p-2 h-16 overflow-hidden shadow hover:shadow-md transition cursor-pointer"
+                                draggable="true"
+                                data-meal="${meal.meal_name}">
+                                <div class="font-semibold truncate" title="${meal.meal_name}">${meal.meal_name}</div>
+                                <div class="text-gray-500 truncate" title="${categories}">${categories}</div>
+                            </div>
+                        `);
 
-    const start = (page - 1) * mealsPerPage;
-    const end = start + mealsPerPage;
-    const pageMeals = filteredMeals.slice(start, end);
+                        
+                        card.on('dragstart', function (e) {
+                            e.originalEvent.dataTransfer.setData('text/plain', $(this).data('meal'));
+                        });
 
-    const filterDiv = $('<div class="flex items-center gap-4 mb-4"></div>');
-    const categorySelect = $('<select class="form-control w-60" id="meal-category-filter"><option value="">All Categories</option></select>');
-    filterDiv.append('<label><strong>Filter by Category:</strong></label>');
-    filterDiv.append(categorySelect);
-    mealContainer.append(filterDiv);
+                        
+                        card.on('click', function () {
+                            if (selectedMeal === $(this).data('meal')) {
+                                
+                                selectedMeal = null;
+                                card.removeClass('border-blue-500 ring ring-blue-300');
+                            } else {
+                                selectedMeal = $(this).data('meal');
+                                $('.grid div').removeClass('border-blue-500 ring ring-blue-300'); 
+                                card.addClass('border-blue-500 ring ring-blue-300');
+                            }
+                        });
 
-    categorySelect.change(function () {
-        selectedCategory = $(this).val();
-        applyMealFilter();
-        currentMealPage = 1;
-        renderMealsPage(currentMealPage);
-    });
+                        grid.append(card);
+                    });
+                    return grid;
+                }
 
-    if (pageMeals.length === 0) {
-        mealContainer.append('<p>No meals to display.</p>');
-    } else {
-        mealContainer.append(renderMealCards(pageMeals));
-    }
 
-    const controls = $(`
-        <div class="flex justify-between mt-4">
-            <button class="btn btn-sm btn-secondary" id="prev-meals" ${page === 1 ? 'disabled' : ''}>Previous</button>
-            <button class="btn btn-sm btn-secondary" id="next-meals" ${(end >= filteredMeals.length) ? 'disabled' : ''}>Next</button>
-        </div>
-    `);
-    mealContainer.append(controls);
+                function renderMealsPage(page) {
+                    mealContainer.empty();
 
-    $('#prev-meals').click(() => {
-        if (currentMealPage > 1) {
-            currentMealPage--;
-            renderMealsPage(currentMealPage);
-        }
-    });
+                    const start = (page - 1) * mealsPerPage;
+                    const end = start + mealsPerPage;
+                    const pageMeals = filteredMeals.slice(start, end);
 
-    $('#next-meals').click(() => {
-        if (end < filteredMeals.length) {
-            currentMealPage++;
-            renderMealsPage(currentMealPage);
-        }
-    });
+                    const filterDiv = $('<div class="flex items-center gap-4 mb-4"></div>');
+                    const categorySelect = $('<select class="form-control w-60" id="meal-category-filter"><option value="">All Categories</option></select>');
+                    filterDiv.append('<label><strong>Filter by Category:</strong></label>');
+                    filterDiv.append(categorySelect);
+                    mealContainer.append(filterDiv);
 
-    
-    if ($('#meal-category-filter option').length <= 1) {
-        const categories = new Set();
-        allMeals.forEach(m => {
-            (m.meal_plan_category || []).forEach(cat => {
-                if (cat.category) categories.add(cat.category);
-            });
-        });
-
-        [...categories].sort().forEach(cat => {
-            categorySelect.append(`<option value="${cat}">${cat}</option>`);
-        });
-
-        
-        if (selectedCategory) {
-            categorySelect.val(selectedCategory);
-        }
-    }
-}
-
-function applyMealFilter() {
-    if (!selectedCategory) {
-        filteredMeals = [...allMeals];
-    } else {
-        filteredMeals = allMeals.filter(meal => {
-            return (meal.meal_plan_category || []).some(cat => cat.category === selectedCategory);
-        });
-    }
-}
-
-frappe.call({
-    method: 'frappe.client.get_list',
-    args: {
-        doctype: 'Meals',
-        fields: ['name', 'meal_name'],
-        limit: 1000
-    },
-    callback: function(r) {
-        const meals = r.message || [];
-        let mealNames = meals.map(m => m.name);
-
-        
-        let fetched = 0;
-        meals.forEach((meal, idx) => {
-            frappe.call({
-                method: 'frappe.client.get',
-                args: {
-                    doctype: 'Meals',
-                    name: meal.name
-                },
-                callback: function(docRes) {
-                    meals[idx].meal_plan_category = docRes.message.meal_plan_category || [];
-                    fetched++;
-                    if (fetched === meals.length) {
-                        allMeals = meals;
+                    categorySelect.change(function () {
+                        selectedCategory = $(this).val();
                         applyMealFilter();
+                        currentMealPage = 1;
                         renderMealsPage(currentMealPage);
+                    });
+
+                    if (pageMeals.length === 0) {
+                        mealContainer.append('<p>No meals to display.</p>');
+                    } else {
+                        mealContainer.append(renderMealCards(pageMeals));
+                    }
+
+                    const controls = $(`
+                        <div class="flex justify-between mt-4">
+                            <button class="btn btn-sm btn-secondary" id="prev-meals" ${page === 1 ? 'disabled' : ''}>Previous</button>
+                            <button class="btn btn-sm btn-secondary" id="next-meals" ${(end >= filteredMeals.length) ? 'disabled' : ''}>Next</button>
+                        </div>
+                    `);
+                    mealContainer.append(controls);
+
+                    $('#prev-meals').click(() => {
+                        if (currentMealPage > 1) {
+                            currentMealPage--;
+                            renderMealsPage(currentMealPage);
+                        }
+                    });
+
+                    $('#next-meals').click(() => {
+                        if (end < filteredMeals.length) {
+                            currentMealPage++;
+                            renderMealsPage(currentMealPage);
+                        }
+                    });
+
+                    
+                    if ($('#meal-category-filter option').length <= 1) {
+                        const categories = new Set();
+                        allMeals.forEach(m => {
+                            (m.meal_plan_category || []).forEach(cat => {
+                                if (cat.category) categories.add(cat.category);
+                            });
+                        });
+
+                        [...categories].sort().forEach(cat => {
+                            categorySelect.append(`<option value="${cat}">${cat}</option>`);
+                        });
+
+                        
+                        if (selectedCategory) {
+                            categorySelect.val(selectedCategory);
+                        }
                     }
                 }
-            });
-        });
-    }
-});
 
+                function applyMealFilter() {
+                    if (!selectedCategory) {
+                        filteredMeals = [...allMeals];
+                    } else {
+                        filteredMeals = allMeals.filter(meal => {
+                            return (meal.meal_plan_category || []).some(cat => cat.category === selectedCategory);
+                        });
+                    }
+                }
 
+                frappe.call({
+                    method: 'frappe.client.get_list',
+                    args: {
+                        doctype: 'Meals',
+                        fields: ['name', 'meal_name'],
+                        limit: 1000
+                    },
+                    callback: function(r) {
+                        const meals = r.message || [];
+                        let mealNames = meals.map(m => m.name);
 
+                        
+                        let fetched = 0;
+                        meals.forEach((meal, idx) => {
+                            frappe.call({
+                                method: 'frappe.client.get',
+                                args: {
+                                    doctype: 'Meals',
+                                    name: meal.name
+                                },
+                                callback: function(docRes) {
+                                    meals[idx].meal_plan_category = docRes.message.meal_plan_category || [];
+                                    fetched++;
+                                    if (fetched === meals.length) {
+                                        allMeals = meals;
+                                        applyMealFilter();
+                                        renderMealsPage(currentMealPage);
+                                    }
+                                }
+                            });
+                        });
+                    }
+                });
+                            }
+                        });
+                    }
 
-            }
-        });
-    }
-
-    renderWeekView(currentDate);
-};
+                    
+                    renderWeekView(currentDate);
+                };
