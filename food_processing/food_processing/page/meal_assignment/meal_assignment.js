@@ -3,14 +3,11 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
 		parent: wrapper,
 		title: 'Meal Assignment',
 		single_column: true
-
-        
 	});
-   
 
 	let currentDate = frappe.datetime.nowdate();
     let container = $('<div class="meal-assignment-container p-4 overflow-auto"></div>').appendTo(page.body);
-    currentMonday = getMonday(new Date());
+    let currentMonday = getMonday(new Date());
     const selectedDate = new Date();
 
     page.set_primary_action('Submit Meal Plan', function() {
@@ -23,6 +20,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
             diff = d.getDate() - day + (day === 0 ? -6 : 1);
         return new Date(d.setDate(diff));
     }
+
     function submitMealPlanForWeek(mondayDate) {
         const mondayStr = frappe.datetime.str_to_user(frappe.datetime.obj_to_str(mondayDate));
     
@@ -43,21 +41,20 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
         });
     }
     
-    function getVisibleDates() {
-        // Assuming you're rendering a weekly calendar
-        const cells = document.querySelectorAll(".calendar-cell"); 
+    // Fixed function to get visible dates for the current week
+    function getVisibleDates(monday) {
         const dates = [];
-    
-        cells.forEach(cell => {
-            const dateStr = cell.dataset.date; // make sure you store the date in `data-date` like YYYY-MM-DD
-            if (dateStr) dates.push(dateStr);
-        });
-    
+        for (let i = 0; i < 7; i++) {
+            const date = new Date(monday);
+            date.setDate(monday.getDate() + i);
+            dates.push(frappe.datetime.obj_to_str(date));
+        }
         return dates;
     }
     
-    function fetchAndRenderMealAssignments() {
-        const visibleDates = getVisibleDates();
+    // Fixed function to fetch and render meal assignments
+    function fetchAndRenderMealAssignments(monday) {
+        const visibleDates = getVisibleDates(monday);
     
         frappe.call({
             method: "food_processing.food_processing.page.meal_assignment.meal_assignment.get_meal_entries_for_dates",
@@ -66,46 +63,84 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
             },
             callback: function (r) {
                 const entries = r.message || [];
+                console.log("Fetched meal entries:", entries); // Debug log
     
                 entries.forEach(entry => {
                     // Find the cell based on date and meal_type
                     const selector = `[data-date="${entry.date}"][data-meal-type="${entry.meal_type}"]`;
-                    const cell = document.querySelector(selector);
+                    const cell = $(selector);
     
-                    if (cell) {
-                        cell.innerHTML = `
-                            <div class="meal-assigned">
-                                ${entry.meal_name}<br>
-                                <small>${entry.customer}</small>
+                    if (cell.length > 0) {
+                        cell.html(`
+                            <div class="flex items-center justify-between px-1">
+                                <span class="truncate" title="${entry.meal_name}">${entry.meal_name}</span>
+                                <button class="text-red-500 text-xs remove-meal">&times;</button>
                             </div>
-                        `;
+                        `);
+                        
+                        // Add click handler for remove button
+                        cell.find('.remove-meal').on('click', function(e) {
+                            e.stopPropagation();
+                            removeMealAssignment(entry.date, entry.meal_type, entry.customer);
+                        });
                     }
                 });
+            },
+            error: function(err) {
+                console.error("Error fetching meal assignments:", err);
             }
         });
     }
     
+    // Function to remove meal assignment
+    function removeMealAssignment(date, mealType, customer) {
+        frappe.call({
+            method: "food_processing.food_processing.page.meal_assignment.meal_assignment.remove_meal_assignment",
+            args: {
+                date: date,
+                meal_type: mealType,
+                customer: customer
+            },
+            callback: function(r) {
+                if (r.message === "OK") {
+                    // Clear the cell and refresh
+                    const selector = `[data-date="${date}"][data-meal-type="${mealType}"]`;
+                    $(selector).empty();
+                    frappe.msgprint("Meal assignment removed");
+                } else {
+                    frappe.msgprint("Error removing meal assignment");
+                }
+            }
+        });
+    }
         
     function saveMealAssignment(assignments) {
-        
         const small_appetite = parseInt(document.getElementById('servings-small')?.value) || 0;
         const normal_appetite = parseInt(document.getElementById('servings-normal')?.value) || 0;
         const large_appetite = parseInt(document.getElementById('servings-large')?.value) || 0;
 
-    // Add appetite values to the assignment object
-            assignments.small_appetite = small_appetite;
-            assignments.normal_appetite = normal_appetite;
-            assignments.large_appetite = large_appetite;
+        // Add appetite values to the assignment object
+        assignments.small_appetite = small_appetite;
+        assignments.normal_appetite = normal_appetite;
+        assignments.large_appetite = large_appetite;
+        
         frappe.call({
             method: "food_processing.food_processing.page.meal_assignment.meal_assignment.save_meal_assignment",
             args: {
                 assignments_json: JSON.stringify(assignments),
-               
             },
             callback: function(r) {
                 if (r.message === "OK") {
                     frappe.msgprint("Meal assignment saved");
+                    // Refresh the display to show the saved assignment
+                    fetchAndRenderMealAssignments(currentMonday);
+                } else {
+                    frappe.msgprint("Error saving meal assignment");
                 }
+            },
+            error: function(err) {
+                console.error("Error saving meal assignment:", err);
+                frappe.msgprint("Error saving meal assignment");
             }
         });
     }
@@ -151,14 +186,13 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
         console.log("Final total:", total);
         $('#total-people').text(total);
     }
-    
-    
-    
 
     function renderWeekView(baseDate) {
         container.empty();
-
-        let monday = getMonday(baseDate);
+        
+        // Update currentMonday for the new week
+        currentMonday = getMonday(baseDate);
+        let monday = currentMonday;
         let sunday = new Date(monday);
         sunday.setDate(monday.getDate() + 6);
 
@@ -177,28 +211,26 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
         // Week summary section
         const summary = $(`
             <div id="week-summary" class="p-4 bg-white border rounded shadow mb-4">
-            <div class="flex flex-col sm:flex-row flex-wrap gap-4 items-start sm:items-center justify-between">
-                <div class="text-sm font-medium">
-                    Total People This Week: <span id="total-people" class="font-semibold text-blue-600">0</span>
-                </div>
+                <div class="flex flex-col sm:flex-row flex-wrap gap-4 items-start sm:items-center justify-between">
+                    <div class="text-sm font-medium">
+                        Total People This Week: <span id="total-people" class="font-semibold text-blue-600">0</span>
+                    </div>
 
-                <div class="flex flex-wrap gap-4 items-center text-sm">
-                    <label class="flex items-center">Small:
-                        <input type="number" id="servings-small" class="border rounded px-2 py-1 w-16 ml-1" min="0" value="0" />
-                    </label>
-                    <label class="flex items-center">Normal:
-                        <input type="number" id="servings-normal" class="border rounded px-2 py-1 w-16 ml-1" min="0" value="0" />
-                    </label>
-                    <label class="flex items-center">Large:
-                        <input type="number" id="servings-large" class="border rounded px-2 py-1 w-16 ml-1" min="0" value="0" />
-                    </label>
+                    <div class="flex flex-wrap gap-4 items-center text-sm">
+                        <label class="flex items-center">Small:
+                            <input type="number" id="servings-small" class="border rounded px-2 py-1 w-16 ml-1" min="0" value="0" />
+                        </label>
+                        <label class="flex items-center">Normal:
+                            <input type="number" id="servings-normal" class="border rounded px-2 py-1 w-16 ml-1" min="0" value="0" />
+                        </label>
+                        <label class="flex items-center">Large:
+                            <input type="number" id="servings-large" class="border rounded px-2 py-1 w-16 ml-1" min="0" value="0" />
+                        </label>
+                    </div>
                 </div>
             </div>
-        </div>
-
         `);
         container.append(summary);
-
 
         $('#prev-week').click(() => {
             let prevWeek = new Date(monday);
@@ -246,7 +278,9 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                     if (!customerMap[customer]) {
                         customerMap[customer] = {
                             no_of_people: no_of_people,
-                            days: {}
+                            days: {},
+                            exp_start_date: task.exp_start_date,
+                            exp_end_date: task.exp_end_date
                         };
                     }
 
@@ -298,91 +332,113 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                     const row = $(`<tr><td style="text-align:left;">${colorBox}${customer}</td><td>${entry.no_of_people}</td></tr>`);
 
                     for (let i = 0; i < 7; i++) {
-						const d = new Date(monday);
-						d.setDate(monday.getDate() + i);
-						const key = formatDate(d);
-						const highlight = entry.days[key] === true;
-					
-			
-						const start = new Date(entry.exp_start_date);
-						const end = new Date(entry.exp_end_date);
-					
-						const isActive = d.getTime() >= start.getTime() && d.getTime() <= end.getTime();
-					
-						for (let j = 0; j < 3; j++) {
+                        const d = new Date(monday);
+                        d.setDate(monday.getDate() + i);
+                        const key = formatDate(d);
+                        const highlight = entry.days[key] === true;
+
+                        const start = new Date(entry.exp_start_date);
+                        const end = new Date(entry.exp_end_date);
+
+                        const isActive = d.getTime() >= start.getTime() && d.getTime() <= end.getTime();
+
+                        for (let j = 0; j < 3; j++) {
                             const mealType = meals[j];
-							const cell = $(`<td class="border text-center min-w-[100px] h-[50px] text-xs align-middle"></td>`);
+                            const cell = $(`<td class="border text-center min-w-[100px] h-[50px] text-xs align-middle calendar-cell"></td>`);
                             cell.attr('data-date', key);
                             cell.attr('data-meal-type', mealType);
+                            cell.attr('data-customer', customer);
 
-							if (highlight || isActive) {
-								cell.css('background-color', color);
-								cell.addClass('droppable-cell');
-					
-								// Drag events
-								cell.on('dragover', function (e) {
-									e.preventDefault();
-									$(this).addClass('ring ring-blue-400');
-								});
-					
-								cell.on('dragleave', function () {
-									$(this).removeClass('ring ring-blue-400');
-								});
-					
-								
-								cell.on('drop', function (e) {
-									e.preventDefault();
-									$(this).removeClass('ring ring-blue-400' );
-									const mealName = e.originalEvent.dataTransfer.getData('text/plain');
+                            if (highlight || isActive) {
+                                cell.css('background-color', color);
+                                cell.addClass('droppable-cell');
+
+                                // Drag events
+                                cell.on('dragover', function (e) {
+                                    e.preventDefault();
+                                    $(this).addClass('ring ring-blue-400');
+                                });
+
+                                cell.on('dragleave', function () {
+                                    $(this).removeClass('ring ring-blue-400');
+                                });
+
+                                cell.on('drop', function (e) {
+                                    e.preventDefault();
+                                    $(this).removeClass('ring ring-blue-400');
+                                    const mealName = e.originalEvent.dataTransfer.getData('text/plain');
                                     const meal = allMeals.find(m => m.meal_name === mealName);
                                     const meal_id = meal?.name || "";
-                                    const cellDate = formatDate(d); 
-                                    const mealType = meals[j]; 
-                                    const customer = 
-									$(this).html(`
-										<div class="flex items-center justify-between px-1">
-											<span class="truncate">${mealName}</span>
-											<button class="text-red-500 text-xs remove-meal">&times;</button>
-										</div>
-									`);
+                                    const cellDate = key;
+                                    const mealType = meals[j];
+                                    const currentCustomer = customer;
+
+                                    $(this).html(`
+                                        <div class="flex items-center justify-between px-1">
+                                            <span class="truncate" title="${mealName}">${mealName}</span>
+                                            <button class="text-red-500 text-xs remove-meal">&times;</button>
+                                        </div>
+                                    `);
+
+                                    // Add remove click handler
+                                    $(this).find('.remove-meal').on('click', function(e) {
+                                        e.stopPropagation();
+                                        removeMealAssignment(cellDate, mealType, currentCustomer);
+                                    });
+
                                     saveMealAssignment({
                                         date: cellDate,
                                         meal_type: mealType,
                                         meal_id: meal_id,
                                         meal_name: mealName,
-                                        customer: typeof customer === "string" ? customer : customer.textContent || $(customer).text(),
-
+                                        customer: currentCustomer,
                                         small_appetite: parseInt($("#servings-small").val()) || 0,
                                         normal_appetite: parseInt($("#servings-normal").val()) || 0,
                                         large_appetite: parseInt($("#servings-large").val()) || 0,
                                         total_individuals: parseInt($('#total-people').text()) || 0
-								});
-                            });
+                                    });
+                                });
 
-								cell.on('click', function () {
-									if (!selectedMeal) return; 
-									
-									$(this).html(`
-										<div class="flex items-center justify-between px-1">
-											<span class="truncate">${selectedMeal}</span>
-											<button class="text-red-500 text-xs remove-meal">&times;</button>
-										</div>
-									`);
-								});
-								
-					
-								
-								cell.on('click', '.remove-meal', function (e) {
-									e.stopPropagation();
-									$(this).closest('td').empty();
-								});
-							}
-					
-							row.append(cell);
-						}
-					}
-					
-					
+                                cell.on('click', function () {
+                                    if (!selectedMeal) return;
+
+                                    const meal = allMeals.find(m => m.meal_name === selectedMeal);
+                                    const meal_id = meal?.name || "";
+                                    const cellDate = key;
+                                    const mealType = meals[j];
+                                    const currentCustomer = customer;
+
+                                    $(this).html(`
+                                        <div class="flex items-center justify-between px-1">
+                                            <span class="truncate" title="${selectedMeal}">${selectedMeal}</span>
+                                            <button class="text-red-500 text-xs remove-meal">&times;</button>
+                                        </div>
+                                    `);
+
+                                    // Add remove click handler
+                                    $(this).find('.remove-meal').on('click', function(e) {
+                                        e.stopPropagation();
+                                        removeMealAssignment(cellDate, mealType, currentCustomer);
+                                    });
+
+                                    saveMealAssignment({
+                                        date: cellDate,
+                                        meal_type: mealType,
+                                        meal_id: meal_id,
+                                        meal_name: selectedMeal,
+                                        customer: currentCustomer,
+                                        small_appetite: parseInt($("#servings-small").val()) || 0,
+                                        normal_appetite: parseInt($("#servings-normal").val()) || 0,
+                                        large_appetite: parseInt($("#servings-large").val()) || 0,
+                                        total_individuals: parseInt($('#total-people').text()) || 0
+                                    });
+                                });
+                            }
+
+                            row.append(cell);
+                        }
+                    }
+
                     tbody.append(row);
                 });
 
@@ -391,11 +447,11 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                 const scrollContainer = $('<div style="overflow-x:auto; width:100%;"></div>');
                 scrollContainer.append(table);
 
-                
                 container.append(scrollContainer);
 
-                fetchAndRenderMealAssignments();
-				
+                // Fetch and render existing meal assignments after the table is created
+                fetchAndRenderMealAssignments(monday);
+
                 let mealsPerPage = 5;
                 let currentMealPage = 1;
                 let allMeals = [];
@@ -405,8 +461,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                 const mealContainer = $('<div class="mt-6"></div>');
                 container.append(mealContainer);
 
-                let selectedMeal = null; 
-
+                let selectedMeal = null;
 
                 function renderMealCards(meals) {
                     const grid = $('<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 mt-4"></div>');
@@ -421,20 +476,17 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                             </div>
                         `);
 
-                        
                         card.on('dragstart', function (e) {
                             e.originalEvent.dataTransfer.setData('text/plain', $(this).data('meal'));
                         });
 
-                        
                         card.on('click', function () {
                             if (selectedMeal === $(this).data('meal')) {
-                                
                                 selectedMeal = null;
                                 card.removeClass('border-blue-500 ring ring-blue-300');
                             } else {
                                 selectedMeal = $(this).data('meal');
-                                $('.grid div').removeClass('border-blue-500 ring ring-blue-300'); 
+                                $('.grid div').removeClass('border-blue-500 ring ring-blue-300');
                                 card.addClass('border-blue-500 ring ring-blue-300');
                             }
                         });
@@ -443,7 +495,6 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                     });
                     return grid;
                 }
-
 
                 function renderMealsPage(page) {
                     mealContainer.empty();
@@ -493,7 +544,6 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                         }
                     });
 
-                    
                     if ($('#meal-category-filter option').length <= 1) {
                         const categories = new Set();
                         allMeals.forEach(m => {
@@ -506,7 +556,6 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                             categorySelect.append(`<option value="${cat}">${cat}</option>`);
                         });
 
-                        
                         if (selectedCategory) {
                             categorySelect.val(selectedCategory);
                         }
@@ -534,7 +583,6 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                         const meals = r.message || [];
                         let mealNames = meals.map(m => m.name);
 
-                        
                         let fetched = 0;
                         meals.forEach((meal, idx) => {
                             frappe.call({
@@ -556,11 +604,10 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                         });
                     }
                 });
-                            }
-                        });
-                    }
+            }
+        });
+    }
 
-                    
-                    renderWeekView(currentDate);
-                    
-                };
+    // Initialize the page
+    renderWeekView(currentDate);
+};
