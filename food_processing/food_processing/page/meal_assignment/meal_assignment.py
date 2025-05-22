@@ -124,33 +124,26 @@ def submit_meal_plan(monday):
         return "already_submitted"
 
 @frappe.whitelist()
-def get_meal_plan_data(start_date):
+def get_meal_entries_for_dates(dates_json):
+    import json
     from frappe.utils import getdate
-    from datetime import timedelta
 
-    monday = getdate(start_date)
-    sunday = monday + timedelta(days=6)
+    dates = [getdate(d) for d in json.loads(dates_json)]
+    matched_entries = []
 
-    plan = frappe.get_all("Meal Plan", filters={"start_date": monday}, fields=["name"])
-    if not plan:
-        return {}
+    # Get all meal plans (ideally filter by date range if you have many)
+    meal_plans = frappe.get_all("Meal Plan", fields=["name", "group_name"])  # change group_name if your field differs
 
-    doc = frappe.get_doc("Meal Plan", plan[0].name)
+    for plan in meal_plans:
+        doc = frappe.get_doc("Meal Plan", plan.name)
 
-    return {
-        "name": doc.name,
-        "entries": [
-            {
-                "date": e.date,
-                "meal_type": e.meal_type,
-                "meal_id": e.meal_id,
-                "meal_name": e.meal_name
-            }
-            for e in doc.meal_plan_entry
-        ],
-        "total_individuals": doc.total_individuals,
-        "small_appetite": doc.small_appetite,
-        "normal_appetite": doc.normal_appetite,
-        "large_appetite": doc.large_appetite,
-        "selected_projects": doc.selected_projects
-    }
+        for entry in doc.meal_plan_entry:
+            if entry.date in dates:
+                matched_entries.append({
+                    "date": str(entry.date),
+                    "meal_type": entry.meal_type,
+                    "meal_name": entry.meal_name,
+                    "customer": doc.group_name  # or doc.customer
+                })
+
+    return matched_entries

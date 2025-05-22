@@ -3,16 +3,18 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
 		parent: wrapper,
 		title: 'Meal Assignment',
 		single_column: true
-	});
 
+        
+	});
    
 
 	let currentDate = frappe.datetime.nowdate();
     let container = $('<div class="meal-assignment-container p-4 overflow-auto"></div>').appendTo(page.body);
     currentMonday = getMonday(new Date());
-    
+    const selectedDate = new Date();
+
     page.set_primary_action('Submit Meal Plan', function() {
-        submitMealPlanForWeek(currentMonday); // Call your submit function
+        submitMealPlanForWeek(currentMonday); 
     }, 'check');
     
     function getMonday(date) {
@@ -41,6 +43,49 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
         });
     }
     
+    function getVisibleDates() {
+        // Assuming you're rendering a weekly calendar
+        const cells = document.querySelectorAll(".calendar-cell"); 
+        const dates = [];
+    
+        cells.forEach(cell => {
+            const dateStr = cell.dataset.date; // make sure you store the date in `data-date` like YYYY-MM-DD
+            if (dateStr) dates.push(dateStr);
+        });
+    
+        return dates;
+    }
+    
+    function fetchAndRenderMealAssignments() {
+        const visibleDates = getVisibleDates();
+    
+        frappe.call({
+            method: "food_processing.food_processing.page.meal_assignment.meal_assignment.get_meal_entries_for_dates",
+            args: {
+                dates_json: JSON.stringify(visibleDates)
+            },
+            callback: function (r) {
+                const entries = r.message || [];
+    
+                entries.forEach(entry => {
+                    // Find the cell based on date and meal_type
+                    const selector = `[data-date="${entry.date}"][data-meal-type="${entry.meal_type}"]`;
+                    const cell = document.querySelector(selector);
+    
+                    if (cell) {
+                        cell.innerHTML = `
+                            <div class="meal-assigned">
+                                ${entry.meal_name}<br>
+                                <small>${entry.customer}</small>
+                            </div>
+                        `;
+                    }
+                });
+            }
+        });
+    }
+    
+        
     function saveMealAssignment(assignments) {
         
         const small_appetite = parseInt(document.getElementById('servings-small')?.value) || 0;
@@ -265,8 +310,11 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
 						const isActive = d.getTime() >= start.getTime() && d.getTime() <= end.getTime();
 					
 						for (let j = 0; j < 3; j++) {
+                            const mealType = meals[j];
 							const cell = $(`<td class="border text-center min-w-[100px] h-[50px] text-xs align-middle"></td>`);
-					
+                            cell.attr('data-date', key);
+                            cell.attr('data-meal-type', mealType);
+
 							if (highlight || isActive) {
 								cell.css('background-color', color);
 								cell.addClass('droppable-cell');
@@ -346,6 +394,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                 
                 container.append(scrollContainer);
 
+                fetchAndRenderMealAssignments();
 				
                 let mealsPerPage = 5;
                 let currentMealPage = 1;
@@ -513,4 +562,5 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
 
                     
                     renderWeekView(currentDate);
+                    
                 };
