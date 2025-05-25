@@ -266,81 +266,139 @@ def update_daily_meal_costs(meal_plan_doc):
 
 
 
-import frappe
-from frappe.utils import getdate
 
 @frappe.whitelist()
 def create_shopping_list(monday):
-    """Create shopping list from meal plan start date (monday in yyyy-mm-dd)"""
+    """API method: Create shopping list for the meal plan of a given Monday"""
     try:
-        frappe.logger().info(f"[create_shopping_list] Starting shopping list creation for: {monday}")
-        monday_date = getdate(monday)
+        frappe.msgprint(f"Fetching Meal Plan for Monday: {monday}")
+        frappe.logger().info(f"[API CALL] Creating shopping list for Monday: {monday}")
 
-        # Fetch Meal Plan for given start date
-        meal_plan_list = frappe.get_all("Meal Plan", filters={"start_date": monday_date}, fields=["name"])
-        if not meal_plan_list:
-            msg = f"No Meal Plan found starting on {monday}"
-            frappe.logger().warning(msg)
-            return msg
+        meal_plan = frappe.get_doc("Meal Plan", {"start_date": monday})
 
-        meal_plan_doc = frappe.get_doc("Meal Plan", meal_plan_list[0].name)
+        if not meal_plan:
+            frappe.throw(f"No Meal Plan found for Monday: {monday}")
 
-        # Check if shopping list already exists
-        existing_list = frappe.get_all("Shopping List", filters={"meal_plan": meal_plan_doc.name}, fields=["name"])
+        return _generate_shopping_list(meal_plan)
+
+    except Exception as e:
+        error_msg = f"Error creating shopping list: {str(e)}"
+        frappe.logger().error(error_msg)
+        frappe.log_error(error_msg)
+        frappe.msgprint(error_msg)
+        return None
+
+
+def _generate_shopping_list(meal_plan_doc):
+    try:
+        frappe.msgprint(f"Generating shopping list for: {meal_plan_doc.name}")
+        frappe.logger().info(f"[START] Shopping list creation for {meal_plan_doc.name}")
+
+        existing_list = frappe.get_all("Shopping List", filters={
+            "meal_plan": meal_plan_doc.name
+        }, fields=["name"])
+
         if existing_list:
             shopping_list_doc = frappe.get_doc("Shopping List", existing_list[0].name)
             shopping_list_doc.shopping_details = []
-            frappe.logger().info(f"Regenerating existing shopping list: {shopping_list_doc.name}")
+            frappe.logger().info(f"Found existing Shopping List: {shopping_list_doc.name}, clearing items")
         else:
             shopping_list_doc = frappe.new_doc("Shopping List")
             shopping_list_doc.meal_plan = meal_plan_doc.name
             shopping_list_doc.selected_projects = meal_plan_doc.selected_projects or ""
-            frappe.logger().info(f"Creating new shopping list for Meal Plan: {meal_plan_doc.name}")
+            frappe.logger().info("Creating new Shopping List")
 
         ingredient_totals = {}
+        unique_meals = set()
         meal_frequency = {}
 
-        for entry in meal_plan_doc.get("meal_plan_entry", []):
-            meal_id = entry.get("meal_id")
-            if not meal_id:
-                continue
-            meal_frequency[meal_id] = meal_frequency.get(meal_id, 0) + 1
+        for entry in meal_plan_doc.meal_plan_entry:
+            unique_meals.add(entry.meal_id)
+            meal_frequency[entry.meal_id] = meal_frequency.get(entry.meal_id, 0) + 1
 
-        for meal_id, freq in meal_frequency.items():
-            meal_doc = frappe.get_doc("Meals", meal_id)
-            for recipe in meal_doc.get("recipes", []):
-                recipe_name = recipe.get("recipe_name")
-                if not recipe_name:
-                    continue
-                recipe_doc = frappe.get_doc("Recipe", recipe_name)
-                for ing in recipe_doc.get("ingredients", []):
-                    item_code = ing.get("item_code")
-                    qty = ing.get("qty", 0)
-                    cost = ing.get("cost", 0)
-                    if not item_code:
-                        continue
-                    if item_code not in ingredient_totals:
-                        ingredient_totals[item_code] = {"qty": 0, "cost": 0}
-                    ingredient_totals[item_code]["qty"] += qty * freq
-                    ingredient_totals[item_code]["cost"] += cost * freq
+        frappe.logger().info(f"Unique meals found: {unique_meals}")
 
-        for item_code, totals in ingredient_totals.items():
+        MAX_COST = 99999999.99  
+
+        for meal_id in unique_meals:
+            try:
+                meal_doc = frappe.get_doc("Meals", meal_id)
+                frequency = meal_frequency[meal_id]
+
+                if hasattr(meal_doc, 'recipes') and meal_doc.recipes:
+                    for recipe in meal_doc.recipes:
+                        recipe_name = recipe.get('recipe_name')
+                        if not recipe_name:
+                            continue
+
+                        try:
+                            recipe_doc = frappe.get_doc("Recipe", recipe_name)
+
+                            if hasattr(recipe_doc, 'ingredients') and recipe_doc.ingredients:
+                                for ingredient in recipe_doc.ingredients:
+                                    item_code = ingredient.get('ingredient')
+                                    try:
+                                        qty = float(ingredient.get('qty', 0)) or 0
+                                        cost = float(ingredient.get('cost', 0)) or 0
+                                    except Exception as e:
+                                        frappe.logger().warning(f"Invalid qty or cost for {item_code}: {e}")
+                                        qty = 0
+                                        cost = 0
+
+                                    if not item_code:
+                                        continue
+
+                                    total_qty = qty * frequency
+                                    total_cost = cost * frequency
+
+                                    # Clamp and round total_cost
+                                    if total_cost > MAX_COST:
+                                        frappe.logger().warning(f"Cost for {item_code} capped from {total_cost} to {MAX_COST}")
+                                        total_cost = MAX_COST
+
+                                    total_cost = round(total_cost, 2)
+                                    total_qty = round(total_qty, 2)
+
+                                    if item_code in ingredient_totals:
+                                        ingredient_totals[item_code]['qty'] += total_qty
+                                        ingredient_totals[item_code]['cost'] += total_cost
+                                    else:
+                                        ingredient_totals[item_code] = {
+                                            'item_code': item_code,
+                                            'qty': total_qty,
+                                            'cost': total_cost
+                                        }
+
+                        except Exception as recipe_error:
+                            frappe.logger().error(f"Error processing recipe {recipe_name}: {str(recipe_error)}")
+
+            except Exception as meal_error:
+                frappe.logger().error(f"Error processing meal {meal_id}: {str(meal_error)}")
+
+        for ingredient_data in ingredient_totals.values():
+            # Round again before saving
+            ingredient_data['qty'] = round(ingredient_data['qty'], 2)
+            ingredient_data['cost'] = round(ingredient_data['cost'], 2)
+
             shopping_list_doc.append("shopping_details", {
-                "item_code": item_code,
-                "qty": totals["qty"],
-                "cost": totals["cost"]
+                "item_code": ingredient_data['item_code'],
+                "qty": ingredient_data['qty'],
+                "cost": ingredient_data['cost']
             })
+            frappe.logger().info(f"Added ingredient to list: {ingredient_data}")
 
         shopping_list_doc.save()
-        frappe.logger().info(f"[create_shopping_list] Shopping List created: {shopping_list_doc.name} with {len(shopping_list_doc.shopping_details)} items")
+        frappe.msgprint(f"Shopping List created/updated: {shopping_list_doc.name}")
+        frappe.logger().info(f"[DONE] Shopping List: {shopping_list_doc.name}")
+
         return shopping_list_doc.name
 
     except Exception as e:
-        error_message = f"Error creating shopping list: {str(e)}"
-        frappe.logger().error(error_message)
-        frappe.log_error(error_message)
-        return error_message
-
+        error_msg = f"Error generating shopping list: {str(e)}"
+        frappe.logger().error(error_msg)
+        frappe.log_error(error_msg)
+        frappe.msgprint(error_msg)
+        return None
 
 @frappe.whitelist()
 def get_meal_plan_status(monday):
