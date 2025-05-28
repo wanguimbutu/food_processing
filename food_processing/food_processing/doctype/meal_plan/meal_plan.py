@@ -192,8 +192,8 @@ def check_meal_plan_overlap(meal_plan_name, start_date, end_date):
         overlapping_doc = frappe.get_doc("Meal Plan", name)
 
         # Copy HTML table
-        if overlapping_doc.meal_plan_html:
-            current_plan.meal_plan_html = overlapping_doc.meal_plan_html
+        if overlapping_doc.meal_plan_table:
+            current_plan.meal_plan_table = overlapping_doc.meal_plan_table
 
         # Copy Meal Plan Entries
         existing_entries = {

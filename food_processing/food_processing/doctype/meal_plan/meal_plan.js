@@ -4,9 +4,9 @@ frappe.ui.form.on('Meal Plan', {
         render_meal_plan_table(frm)
         load_existing_meals(frm);
         
-        if (frm.doc.meal_plan_html && frm.fields_dict.meal_plan_html) {
-            console.log("Loading saved meal_plan_html:", frm.doc.meal_plan_html);
-            frm.fields_dict.meal_plan_html.$wrapper.html(frm.doc.meal_plan_html);
+        if (frm.doc.meal_plan_table && frm.fields_dict.meal_plan_table) {
+            console.log("Loading saved meal_plan_table:", frm.doc.meal_plan_table);
+            frm.fields_dict.meal_plan_table.$wrapper.html(frm.doc.meal_plan_table);
         }
 
         
@@ -499,10 +499,16 @@ function setup_meal_drag_and_drop(frm) {
                     </div>
                 `);
 
-                mealItem.find(".remove-meal").on("click", function () {
+                meal_container.on("click", ".remove-meal", function () {
+                    const mealItem = $(this).closest(".meal-item");
+                    const meal_id = mealItem.attr("data-meal-id");
+                    const selected_date = mealItem.closest("tr").attr("data-date");
+                    const meal_type = mealItem.closest("td").attr("data-meal-type");
+                
                     mealItem.remove();
                     remove_meal_from_plan(frm, meal_id, selected_date, meal_type);
                 });
+                
 
                 $(event.target).append(mealItem);
                 add_meal_to_plan(frm, meal_id, meal_name, selected_date, meal_type);
