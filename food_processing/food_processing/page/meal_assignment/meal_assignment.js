@@ -242,7 +242,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
             </div>
         `);
         container.append(nav);
-        const displayName = task.custom_customer_name || customer; 
+        
         // Week summary section
         const summary = $(`
             <div id="week-summary" class="p-4 bg-white border rounded shadow mb-4">
@@ -265,7 +265,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                 </div>
             </div>
         `);
-        
+
         container.append(summary);
 
         $('#prev-week').click(() => {
@@ -309,11 +309,12 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                     const no_of_people = task.custom_no_of_people;
                     const start = frappe.datetime.str_to_obj(task.exp_start_date);
                     const end = frappe.datetime.str_to_obj(task.exp_end_date);
-
+                
                     getColorForCustomer(customer, assignedColors);
 
                     if (!customerMap[customer]) {
                         customerMap[customer] = {
+                            customer_name: task.custom_customer_name || customer,
                             no_of_people: no_of_people,
                             days: {},
                             exp_start_date: task.exp_start_date,
@@ -366,7 +367,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                         vertical-align:middle;
                     "></span>`;
 
-                    const row = $(`<tr><td style="text-align:left;">${colorBox}${displayName}</td><td>${entry.no_of_people}</td></tr>`);
+                    const row = $(`<tr><td style="text-align:left;" title="${customer}">${colorBox}${entry.customer_name}</td><td>${entry.no_of_people}</td></tr>`);
 
                     for (let i = 0; i < 7; i++) {
                         const d = new Date(monday);
