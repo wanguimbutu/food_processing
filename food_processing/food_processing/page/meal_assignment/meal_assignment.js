@@ -138,10 +138,12 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
             },
             callback: function(r) {
                 if (r.message === "OK") {
-                    // Clear the cell and refresh
                     const selector = `[data-date="${date}"][data-meal-type="${mealType}"]`;
                     $(selector).empty();
                     frappe.msgprint("Meal assignment removed");
+                    fetchAndRenderMealAssignments(currentMonday);
+                } else if (r.message === "cancelled") {
+                    frappe.msgprint("Cannot modify cancelled meal plan");
                 } else {
                     frappe.msgprint("Error removing meal assignment");
                 }
@@ -150,35 +152,49 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
     }
         
     function saveMealAssignment(assignments) {
-        const small_appetite = parseInt(document.getElementById('servings-small')?.value) || 0;
-        const normal_appetite = parseInt(document.getElementById('servings-normal')?.value) || 0;
-        const large_appetite = parseInt(document.getElementById('servings-large')?.value) || 0;
+    
+    const small_appetite = parseInt($('#servings-small').val()) || 0;
+    const normal_appetite = parseInt($('#servings-normal').val()) || 0;
+    const large_appetite = parseInt($('#servings-large').val()) || 0;
+    const total_individuals = parseInt($('#total-people').text()) || 0;
 
-        // Add appetite values to the assignment object
-        assignments.small_appetite = small_appetite;
-        assignments.normal_appetite = normal_appetite;
-        assignments.large_appetite = large_appetite;
-        
-        frappe.call({
-            method: "food_processing.food_processing.page.meal_assignment.meal_assignment.save_meal_assignment",
-            args: {
-                assignments_json: JSON.stringify(assignments),
-            },
-            callback: function(r) {
-        if (r.message === "OK") {
-                    frappe.msgprint("Meal assignment saved");
-                    // Refresh the display to show the saved assignment
-                    fetchAndRenderMealAssignments(currentMonday);
-                } else {
-                    frappe.msgprint("Error saving meal assignment");
-                }
-            },
-            error: function(err) {
-                console.error("Error saving meal assignment:", err);
-                frappe.msgprint("Error saving meal assignment");
+    const assignmentData = {
+        date: assignments.date,
+        meal_type: assignments.meal_type,
+        meal_id: assignments.meal_id,
+        meal_name: assignments.meal_name,
+        customer: assignments.customer,
+        small_appetite: small_appetite,
+        normal_appetite: normal_appetite,
+        large_appetite: large_appetite,
+        total_individuals: total_individuals
+    };
+
+    console.log("Sending assignment data:", assignmentData); // Debug log
+    frappe.msgprint(`Attempting to save: ${assignmentData.meal_name} for ${assignmentData.customer}`); // Debug message
+    
+    frappe.call({
+        method: "food_processing.food_processing.page.meal_assignment.meal_assignment.save_meal_assignment",
+        args: {
+            assignments_json: JSON.stringify(assignmentData)
+        },
+        callback: function(r) {
+            console.log("Save response:", r); // Debug log
+            if (r.message === "OK") {
+                frappe.msgprint("Meal assignment saved successfully!");
+                // Refresh the display to show the saved assignment
+                fetchAndRenderMealAssignments(currentMonday);
+            } else {
+                console.error("Server returned:", r.message);
+                frappe.msgprint("Save failed - Server response: " + (r.message || "Unknown error"));
             }
-        });
-    }
+        },
+        error: function(err) {
+            console.error("Error saving meal assignment:", err);
+            frappe.msgprint("Network error while saving: " + (err.message || "Connection failed"));
+        }
+    });
+}
     
     function formatDate(date) {
         return frappe.datetime.obj_to_str(date);

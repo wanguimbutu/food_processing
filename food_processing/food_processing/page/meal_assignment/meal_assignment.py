@@ -7,46 +7,64 @@ def save_meal_assignment(assignments_json):
         from frappe.utils import getdate
         from datetime import timedelta
 
+        frappe.msgprint("Starting save_meal_assignment")
+        
         data = json.loads(assignments_json)
+        frappe.msgprint(f"Parsed data: {data}")
         
         date = getdate(data['date'])
         meal_type = data['meal_type']
         meal_id = data['meal_id']
         meal_name = data['meal_name']
-        customer = data.get('customer', '')  # Make sure customer is included
+        customer = data.get('customer', '')
 
-        # Appetite values from frontend
+        frappe.msgprint(f"Processing: {meal_name} for {customer} on {date}")
+
         small_appetite = data.get("small_appetite", 0)
         normal_appetite = data.get("normal_appetite", 0)
         large_appetite = data.get("large_appetite", 0)
         total_individuals = data.get("total_individuals", 0)
 
-        # Get week range
         monday = date - timedelta(days=date.weekday())
         sunday = monday + timedelta(days=6)
 
-        # Get or create the Meal Plan for this week
+        frappe.msgprint(f"Week range: {monday} to {sunday}")
+
         meal_plan = frappe.get_all("Meal Plan", filters={
             "start_date": monday
-        }, fields=["name"])
+        }, fields=["name", "docstatus"], order_by="creation desc")  
 
         if meal_plan:
             meal_plan_doc = frappe.get_doc("Meal Plan", meal_plan[0].name)
+            frappe.msgprint(f"Found existing Meal Plan: {meal_plan[0].name}")
+            
+            if meal_plan_doc.docstatus == 2:
+                frappe.msgprint("Document is cancelled - creating amendment")
+                
+                amendment_doc = frappe.copy_doc(meal_plan_doc)
+                amendment_doc.docstatus = 0 
+                amendment_doc.amended_from = meal_plan_doc.name
+                
+                amendment_doc.name = None
+                amendment_doc.insert()
+            
+                meal_plan_doc = amendment_doc
+                frappe.msgprint(f"Created amendment: {meal_plan_doc.name}") #debug remove later
+                
         else:
             meal_plan_doc = frappe.new_doc("Meal Plan")
             meal_plan_doc.start_date = monday
             meal_plan_doc.end_date = sunday
             meal_plan_doc.selected_projects = ""
-       
+            frappe.msgprint("Created new Meal Plan")
+
         frappe.logger().info(f"Appetite values: Small={small_appetite}, Normal={normal_appetite}, Large={large_appetite}")
 
-        # Store the latest appetite values in the parent Meal Plan
         meal_plan_doc.small_appetite = small_appetite
         meal_plan_doc.normal_appetite = normal_appetite
         meal_plan_doc.large_appetite = large_appetite
         meal_plan_doc.total_individuals = total_individuals
 
-        # Check if entry already exists (include customer in the check)
         existing = [
             e for e in meal_plan_doc.meal_plan_entry
             if e.date == date and e.meal_type == meal_type and e.get('customer') == customer
@@ -56,6 +74,7 @@ def save_meal_assignment(assignments_json):
             existing[0].meal_id = meal_id
             existing[0].meal_name = meal_name
             existing[0].customer = customer
+            frappe.msgprint("Updated existing meal entry")
         else:
             meal_plan_doc.append("meal_plan_entry", {
                 "date": date,
@@ -64,8 +83,8 @@ def save_meal_assignment(assignments_json):
                 "meal_name": meal_name,
                 "customer": customer
             })
+            frappe.msgprint("Added new meal entry")
         
-        # Add projects from the week's tasks
         try:
             new_projects = set(get_projects_for_week(monday))
             existing_projects = set()
@@ -75,23 +94,25 @@ def save_meal_assignment(assignments_json):
                 )
             all_projects = existing_projects.union(new_projects)
             meal_plan_doc.selected_projects = ", ".join(sorted(all_projects))
+            frappe.msgprint(f"Updated projects: {meal_plan_doc.selected_projects}")#debug remove later
         except Exception as e:
             frappe.logger().error(f"Error getting projects for week: {str(e)}")
-            # Continue without projects if there's an error
+            frappe.msgprint(f"Project update failed: {str(e)}")
 
         meal_plan_doc.save()
         frappe.db.commit()
-
-        # Return "OK" to match what the frontend expects
+        
+        frappe.msgprint("Meal Plan saved successfully")
         return "OK"
         
     except Exception as e:
-        frappe.logger().error(f"Error in save_meal_assignment: {str(e)}")
-        frappe.log_error(f"Save meal assignment error: {str(e)}")
-        return {"error": str(e)}
+        error_msg = f"Error in save_meal_assignment: {str(e)}"
+        frappe.logger().error(error_msg)
+        frappe.log_error(error_msg)
+        frappe.msgprint(f"Save failed: {str(e)}")
+        return str(e)
 
 
-# Also add the get_projects_for_week function if it doesn't exist
 def get_projects_for_week(monday):
     """Get projects that have tasks in the given week"""
     try:
@@ -116,33 +137,43 @@ def get_projects_for_week(monday):
 
 @frappe.whitelist()
 def get_meal_entries_for_dates(dates_json):
-    """Get meal entries for the specified dates"""
+    """Get meal entries for specific dates, excluding cancelled meal plans"""
     try:
         import json
         from frappe.utils import getdate
+        from datetime import timedelta
         
         dates = json.loads(dates_json)
-        
-        if not dates:
-            return []
-            
-        # Get all meal plans that might contain these dates
-        meal_plans = frappe.get_all("Meal Plan", filters={
-            "start_date": ["<=", max(dates)],
-            "end_date": [">=", min(dates)]
-        }, fields=["name"])
-        
         entries = []
-        for plan in meal_plans:
-            meal_plan_doc = frappe.get_doc("Meal Plan", plan.name)
-            for entry in meal_plan_doc.meal_plan_entry:
-                if str(entry.date) in dates:
-                    entries.append({
-                        "date": str(entry.date),
-                        "meal_type": entry.meal_type,
-                        "meal_name": entry.meal_name,
-                        "customer": entry.get("customer", "")
-                    })
+        
+        for date_str in dates:
+            date = getdate(date_str)
+            monday = date - timedelta(days=date.weekday())
+            
+            # Find meal plans for this week that are NOT cancelled
+            meal_plans = frappe.get_all("Meal Plan", 
+                filters={
+                    "start_date": monday,
+                    "docstatus": ["!=", 2]  # Exclude cancelled documents (docstatus = 2)
+                }, 
+                fields=["name", "docstatus"]
+            )
+            
+            for meal_plan in meal_plans:
+                # Skip if meal plan is cancelled
+                if meal_plan.docstatus == 2:
+                    continue
+                    
+                meal_plan_doc = frappe.get_doc("Meal Plan", meal_plan.name)
+                
+                for entry in meal_plan_doc.meal_plan_entry:
+                    if entry.date == date:
+                        entries.append({
+                            "date": str(entry.date),
+                            "meal_type": entry.meal_type,
+                            "meal_name": entry.meal_name,
+                            "customer": entry.get('custom_customer') or entry.get('customer')
+                        })
         
         return entries
         
@@ -171,13 +202,22 @@ def remove_meal_assignment(date, meal_type, customer):
             
         meal_plan_doc = frappe.get_doc("Meal Plan", meal_plan[0].name)
         
-        # Find and remove the entry
-        for i, entry in enumerate(meal_plan_doc.meal_plan_entry):
-            if (entry.date == date and 
-                entry.meal_type == meal_type and 
-                entry.get('customer') == customer):
-                del meal_plan_doc.meal_plan_entry[i]
-                break
+        # Normalize customer value - treat empty string and None as equivalent
+        customer = customer or None
+        
+        # Find and remove the entry using correct field name and handling None/empty values
+        initial_count = len(meal_plan_doc.meal_plan_entry)
+        meal_plan_doc.meal_plan_entry = [
+            entry for entry in meal_plan_doc.meal_plan_entry 
+            if not (entry.date == date and 
+                    entry.meal_type == meal_type and 
+                    (entry.get('custom_customer') or None) == customer)
+        ]
+        
+        final_count = len(meal_plan_doc.meal_plan_entry)
+        
+        if initial_count == final_count:
+            return "not_found"
         
         meal_plan_doc.save()
         frappe.db.commit()
@@ -188,7 +228,6 @@ def remove_meal_assignment(date, meal_type, customer):
         frappe.logger().error(f"Error in remove_meal_assignment: {str(e)}")
         return "error"
     
-
 @frappe.whitelist()
 def submit_meal_plan(monday):
     from frappe.utils import getdate
