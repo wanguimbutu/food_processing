@@ -3,7 +3,7 @@
 
 import frappe
 from frappe.model.document import Document
-
+import math
 
 class ShoppingList(Document):
      def on_submit(self):
@@ -20,7 +20,7 @@ class ShoppingList(Document):
             packing_list_doc.append("shopping_list", {
                 "item_code": item.item_code,
                 "item_name": item.item_name,
-                "qty": item.qty,
+                "qty": math.ceil(item.qty),
                 "cost": item.cost
          })
 
@@ -50,7 +50,7 @@ def create_material_request(shopping_list_name):
         mr.append("items", {
             "item_code": item.item_code,
             "item_name": item.item_name,
-            "qty": item.qty,
+            "qty": math.ceil(item.qty),
             "schedule_date": frappe.utils.nowdate(),
             "warehouse": default_warehouse,
             "target_warehouse":default_warehouse,
