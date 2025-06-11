@@ -40,7 +40,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                 }
     
                 if (r.message === 'submitted') {
-                   // frappe.msgprint(__('Meal Plan submitted successfully'));
+                    frappe.msgprint(__('Meal Plan submitted successfully'));
     
                     // Call create_shopping_list
                     console.log("Calling create_shopping_list for:", mondayStr);
@@ -139,7 +139,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
             },
             callback: function(r) {
                 if (r.message === "OK") {
-                    const selector = `[data-date="${date}"][data-meal-type="${mealType}"]`;
+                    const selector = `[data-date="${date}"][data-meal-type="${mealType}"][data-customer="${customer}"]`;
                     $(selector).empty();
                     frappe.msgprint("Meal assignment removed");
                     fetchAndRenderMealAssignments(currentMonday);
@@ -172,7 +172,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
     };
 
     console.log("Sending assignment data:", assignmentData); // Debug log
-    frappe.msgprint(`Attempting to save: ${assignmentData.meal_name} for ${assignmentData.customer}`); // Debug message
+    //frappe.msgprint(`Attempting to save: ${assignmentData.meal_name} for ${assignmentData.customer}`); // Debug message
     
     frappe.call({
         method: "food_processing.food_processing.page.meal_assignment.meal_assignment.save_meal_assignment",
@@ -182,7 +182,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
         callback: function(r) {
             console.log("Save response:", r); // Debug log
             if (r.message === "OK") {
-                frappe.msgprint("Meal assignment saved successfully!");
+                //frappe.msgprint("Meal assignment saved successfully!");
                 // Refresh the display to show the saved assignment
                 fetchAndRenderMealAssignments(currentMonday);
             } else {
