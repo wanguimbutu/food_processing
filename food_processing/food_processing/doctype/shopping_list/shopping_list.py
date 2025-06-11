@@ -17,12 +17,15 @@ class ShoppingList(Document):
         packing_list_doc.shopping_list = []
 
         for item in self.shopping_details:
+            rounded_qty = math.ceil(float(item.qty))
+            frappe.msgprint(f"Copying {item.item_name} with qty: {rounded_qty}")
             packing_list_doc.append("shopping_list", {
                 "item_code": item.item_code,
                 "item_name": item.item_name,
-                "qty": math.ceil(item.qty),
+                "qty": rounded_qty,
                 "cost": item.cost
-         })
+            })
+
 
         packing_list_doc.save()
         frappe.msgprint("Items copied to Packing List.")
@@ -50,7 +53,7 @@ def create_material_request(shopping_list_name):
         mr.append("items", {
             "item_code": item.item_code,
             "item_name": item.item_name,
-            "qty": math.ceil(item.qty),
+            "qty": math.ceil(float(item.qty)),
             "schedule_date": frappe.utils.nowdate(),
             "warehouse": default_warehouse,
             "target_warehouse":default_warehouse,

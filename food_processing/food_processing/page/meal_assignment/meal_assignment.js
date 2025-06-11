@@ -13,7 +13,13 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
     page.set_primary_action('Submit Meal Plan', function() {
         submitMealPlanForWeek(currentMonday); 
     }, 'check');
-    
+    page.add_action_item('Go to Shopping Lists', function() {
+    frappe.set_route('List', 'Shopping List');
+});
+
+
+
+
     function getMonday(date) {
         let d = new Date(date);
         let day = d.getDay(),
