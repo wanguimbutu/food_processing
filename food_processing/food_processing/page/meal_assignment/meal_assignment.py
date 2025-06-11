@@ -56,7 +56,7 @@ def save_meal_assignment(assignments_json):
             meal_plan_doc.start_date = monday
             meal_plan_doc.end_date = sunday
             meal_plan_doc.selected_projects = ""
-            frappe.msgprint("Created new Meal Plan")
+            #frappe.msgprint("Created new Meal Plan")
 
         frappe.logger().info(f"Appetite values: Small={small_appetite}, Normal={normal_appetite}, Large={large_appetite}")
 
@@ -310,7 +310,7 @@ def update_daily_meal_costs(meal_plan_doc):
 def create_shopping_list(monday):
     """API method: Create shopping list for the meal plan of a given Monday"""
     try:
-        frappe.msgprint(f"Fetching Meal Plan for Monday: {monday}")
+       # frappe.msgprint(f"Fetching Meal Plan for Monday: {monday}")
         frappe.logger().info(f"[API CALL] Creating shopping list for Monday: {monday}")
 
         meal_plan = frappe.get_doc("Meal Plan", {"start_date": monday})
@@ -330,7 +330,7 @@ def create_shopping_list(monday):
 
 def _generate_shopping_list(meal_plan_doc):
     try:
-        frappe.msgprint(f"Generating shopping list for: {meal_plan_doc.name}")
+        #frappe.msgprint(f"Generating shopping list for: {meal_plan_doc.name}")
         frappe.logger().info(f"[START] Shopping list creation for {meal_plan_doc.name}")
 
         existing_list = frappe.get_all("Shopping List", filters={
@@ -427,7 +427,7 @@ def _generate_shopping_list(meal_plan_doc):
             frappe.logger().info(f"Added ingredient to list: {ingredient_data}")
 
         shopping_list_doc.save()
-        frappe.msgprint(f"Shopping List created/updated: {shopping_list_doc.name}")
+       # frappe.msgprint(f"Shopping List created/updated: {shopping_list_doc.name}")
         frappe.logger().info(f"[DONE] Shopping List: {shopping_list_doc.name}")
 
         return shopping_list_doc.name
