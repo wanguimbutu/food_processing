@@ -36,7 +36,7 @@ def save_meal_assignment(assignments_json):
 
         if meal_plan:
             meal_plan_doc = frappe.get_doc("Meal Plan", meal_plan[0].name)
-            frappe.msgprint(f"Found existing Meal Plan: {meal_plan[0].name}")
+            #frappe.msgprint(f"Found existing Meal Plan: {meal_plan[0].name}")
             
             if meal_plan_doc.docstatus == 2:
                 frappe.msgprint("Document is cancelled - creating amendment")

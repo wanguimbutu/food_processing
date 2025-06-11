@@ -40,7 +40,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                 }
     
                 if (r.message === 'submitted') {
-                    frappe.msgprint(__('Meal Plan submitted successfully'));
+                   // frappe.msgprint(__('Meal Plan submitted successfully'));
     
                     // Call create_shopping_list
                     console.log("Calling create_shopping_list for:", mondayStr);
