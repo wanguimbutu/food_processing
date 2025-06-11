@@ -102,7 +102,8 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
     
                 entries.forEach(entry => {
                     // Find the cell based on date and meal_type
-                    const selector = `[data-date="${entry.date}"][data-meal-type="${entry.meal_type}"]`;
+                    const selector = `[data-date="${entry.date}"][data-meal-type="${entry.meal_type}"][data-customer="${entry.customer}"]`;
+
                     const cell = $(selector);
     
                     if (cell.length > 0) {

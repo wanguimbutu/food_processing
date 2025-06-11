@@ -22,6 +22,7 @@
   "normal_appetite",
   "large_appetite",
   "column_break_xgkf",
+  "total_guides",
   "total_individuals",
   "total_servings",
   "dietary_specifications_section",
@@ -230,12 +231,17 @@
    "fieldtype": "Link",
    "label": "Reservation",
    "options": "Reservation"
+  },
+  {
+   "fieldname": "total_guides",
+   "fieldtype": "Int",
+   "label": "Total Guides"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-05-13 16:52:33.741639",
+ "modified": "2025-06-05 15:52:47.171376",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Meal Plan",
