@@ -9,7 +9,9 @@
   "date",
   "meal_id",
   "meal_name",
-  "meal_type"
+  "meal_type",
+  "customer",
+  "test"
  ],
  "fields": [
   {
@@ -38,12 +40,23 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Meal Name"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer"
+  },
+  {
+   "fieldname": "test",
+   "fieldtype": "Data",
+   "label": "Test"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-03-19 10:47:58.869056",
+ "modified": "2025-06-11 10:40:15.121149",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Meal Plan Entry",
