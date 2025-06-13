@@ -5,6 +5,7 @@ import frappe
 from frappe.model.document import Document
 import json
 import datetime
+import math
 from collections import defaultdict
 
 
@@ -267,9 +268,11 @@ def populate_daily_meal_costs(plan_doc):
     # Debug: Log successful save
     frappe.logger().info(f"Meal Plan {plan_doc.name} updated with daily costs and total meal plan cost.")
 
+
 def populate_shopping_list_from_meal_plan(plan_doc):
     """
     Populates the Shopping List from the meals in the given Meal Plan document.
+    Quantities are rounded up to the next whole integer for easier purchasing.
     """
     total_individuals = plan_doc.total_individuals or 1
     total_servings = plan_doc.total_servings or 1
@@ -291,6 +294,9 @@ def populate_shopping_list_from_meal_plan(plan_doc):
 
     # Step 3: Write to Shopping List table
     for ingredient in ingredient_list:
+        # Round quantity up to next whole integer for easier purchasing
+        rounded_qty = math.ceil(ingredient["qty"])
+        
         existing = frappe.get_all(
             "Shopping List",
             filters={
@@ -303,21 +309,21 @@ def populate_shopping_list_from_meal_plan(plan_doc):
         if existing:
             # Update quantity and cost
             shopping_doc = frappe.get_doc("Shopping List", existing[0].name)
-            shopping_doc.qty = ingredient["qty"]
+            shopping_doc.qty = rounded_qty
             shopping_doc.cost = ingredient["cost"]
             shopping_doc.unit_of_measure = ingredient["unit_of_measure"]
             shopping_doc.save(ignore_permissions=True)
-            frappe.logger().info(f"Updated Shopping List item {ingredient['ingredient']}")
+            frappe.logger().info(f"Updated Shopping List item {ingredient['ingredient']} with rounded up qty {rounded_qty}")
         else:
             # Insert new entry
             frappe.get_doc({
                 "doctype": "Shopping List",
                 "item_code": ingredient["ingredient"],
-                "qty": ingredient["qty"],
+                "qty": rounded_qty,
                 "unit_of_measure": ingredient["unit_of_measure"],
                 "cost": ingredient["cost"],
                 "meal_plan_link": plan_doc.name
             }).insert(ignore_permissions=True)
-            frappe.logger().info(f"Created Shopping List item {ingredient['ingredient']}")
+            frappe.logger().info(f"Created Shopping List item {ingredient['ingredient']} with rounded up qty {rounded_qty}")
 
     frappe.logger().info(f"Shopping list populated for meal plan {plan_doc.name}.")

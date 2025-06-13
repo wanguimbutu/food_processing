@@ -157,7 +157,7 @@ frappe.ui.form.on('Meal Plan', {
         frappe.msgprint("Meal Plan Submitted");
         fetch_meal_ingredients(frm);
     },
-    
+   
     on_submit: function(frm) {        
         console.log("Meal Plan Submitted:", frm.doc.name);
         fetch_meal_ingredients(frm);
@@ -257,9 +257,10 @@ frappe.ui.form.on('Meal Plan', {
             frappe.validated = false;
         }
         
-
+        validate_and_calculate(frm);
 
     }
+    
 });
 
 
