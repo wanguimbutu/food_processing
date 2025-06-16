@@ -27,7 +27,6 @@ def fetch_ingredients(meal_data, total_individuals, total_servings):
     total_individuals = float(total_individuals)
     total_servings = float(total_servings)  # Using this as provided by the frontend
 
-    # Fetch all meal categories at once to avoid multiple DB calls
     meal_ids = [meal["meal_id"] for meal in meal_list]
     meal_categories = {
         meal.name: meal.meal_category
@@ -295,7 +294,9 @@ def populate_shopping_list_from_meal_plan(plan_doc):
     # Step 3: Write to Shopping List table
     for ingredient in ingredient_list:
         # Round quantity up to next whole integer for easier purchasing
-        rounded_qty = math.ceil(ingredient["qty"])
+        raw_qty = float(ingredient["qty"] or 0)
+        rounded_qty = math.ceil(raw_qty)
+
         
         existing = frappe.get_all(
             "Shopping List",
@@ -311,7 +312,7 @@ def populate_shopping_list_from_meal_plan(plan_doc):
             shopping_doc = frappe.get_doc("Shopping List", existing[0].name)
             shopping_doc.qty = rounded_qty
             shopping_doc.cost = ingredient["cost"]
-            shopping_doc.unit_of_measure = ingredient["unit_of_measure"]
+            shopping_doc.uom = ingredient["unit_of_measure"]
             shopping_doc.save(ignore_permissions=True)
             frappe.logger().info(f"Updated Shopping List item {ingredient['ingredient']} with rounded up qty {rounded_qty}")
         else:
@@ -320,7 +321,7 @@ def populate_shopping_list_from_meal_plan(plan_doc):
                 "doctype": "Shopping List",
                 "item_code": ingredient["ingredient"],
                 "qty": rounded_qty,
-                "unit_of_measure": ingredient["unit_of_measure"],
+                "uom": ingredient["unit_of_measure"],
                 "cost": ingredient["cost"],
                 "meal_plan_link": plan_doc.name
             }).insert(ignore_permissions=True)

@@ -4,9 +4,9 @@ frappe.ui.form.on('Meal Plan', {
         render_meal_plan_table(frm)
         load_existing_meals(frm);
         
-        if (frm.doc.meal_plan_table && frm.fields_dict.meal_plan_table) {
-            console.log("Loading saved meal_plan_table:", frm.doc.meal_plan_table);
-            frm.fields_dict.meal_plan_table.$wrapper.html(frm.doc.meal_plan_table);
+        if (frm.doc.meal_plan_html && frm.fields_dict.meal_plan_html) {
+            console.log("Loading saved meal_plan_html:", frm.doc.meal_plan_html);
+            frm.fields_dict.meal_plan_html.$wrapper.html(frm.doc.meal_plan_html);
         }
 
         
@@ -698,7 +698,8 @@ function fetch_meal_ingredients(frm) {
                             item_code: ingredient.ingredient,
                             item_name: ingredient.ingredient_name,
                             qty: qty,
-                            cost: ingredient.cost
+                            cost: ingredient.cost,
+                            uom:ingredient.unit_of_measure
                         };
                     });
 
