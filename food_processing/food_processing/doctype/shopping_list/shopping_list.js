@@ -40,6 +40,13 @@ frappe.ui.form.on('Shopping List', {
                         fieldtype: 'Link',
                         options: 'Meal Plan',
                         reqd: 1
+                    },
+                    {
+                        label: 'Target Warehouse',
+                        fieldname: 'target_warehouse',
+                        fieldtype: 'Link',
+                        options: 'Warehouse',
+                        reqd: 1,
                     }
                 ], function(values) {
                     frappe.call({
@@ -47,7 +54,8 @@ frappe.ui.form.on('Shopping List', {
                         args: {
                             shopping_list_name: frm.doc.name,
                             issue_date: values.issue_date,
-                            meal_plan: values.meal_plan
+                            meal_plan: values.meal_plan,
+                            target_warehouse: values.target_warehouse
                         },
                         callback: function(r) {
                             if (r.message) {

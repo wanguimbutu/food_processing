@@ -66,7 +66,7 @@ def create_material_request(shopping_list_name):
 # Add this method to your shopping_list.py file
 
 @frappe.whitelist()
-def create_daily_material_issue(shopping_list_name, issue_date, meal_plan):
+def create_daily_material_issue(shopping_list_name, issue_date, meal_plan,target_warehouse=None):
     """
     Creates a Material Issue (Stock Entry) for daily meal requirements
     based on the meal plan for a specific date
@@ -114,6 +114,7 @@ def create_daily_material_issue(shopping_list_name, issue_date, meal_plan):
                         "qty": item.get("qty"),
                         "uom": item.get("unit_of_measure", "Nos"),
                         "s_warehouse": item.get("source_warehouse") or get_default_warehouse(),
+                        "t_warehouse": target_warehouse,
                         "cost_center": get_default_cost_center(),
                         # "expense_account": get_default_expense_account(item.get("item_code"))  # Optional
                     })
