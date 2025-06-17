@@ -693,8 +693,6 @@ function fetch_meal_ingredients(frm) {
                                 qty *= total_servings;
                             }
                         }
-                        
-                        qty = Math.ceil(qty);
 
                         return {
                             item_code: ingredient.ingredient,
