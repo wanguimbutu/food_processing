@@ -63,10 +63,9 @@ def create_material_request(shopping_list_name):
     mr.insert(ignore_permissions=True)
     return mr.name
 
-# Add this method to your shopping_list.py file
 
 @frappe.whitelist()
-def create_daily_material_issue(shopping_list_name, issue_date, meal_plan):
+def create_daily_material_issue(shopping_list_name, issue_date, meal_plan,target_warehouse=None):
     """
     Creates a Material Issue (Stock Entry) for daily meal requirements
     based on the meal plan for a specific date
@@ -106,37 +105,77 @@ def create_daily_material_issue(shopping_list_name, issue_date, meal_plan):
             return None
 
         item_append_count = 0
+        items_with_zero_qty = []
+        
         for item in daily_items:
-            if item.get("qty", 0) > 0:
-                try:
-                    stock_entry.append("items", {
-                        "item_code": item.get("item_code"),
-                        "qty": item.get("qty"),
-                        "uom": item.get("unit_of_measure", "Nos"),
-                        "s_warehouse": item.get("source_warehouse") or get_default_warehouse(),
-                        "cost_center": get_default_cost_center(),
-                        # "expense_account": get_default_expense_account(item.get("item_code"))  # Optional
-                    })
-                    item_append_count += 1
-                except Exception as append_error:
-                    frappe.log_error(
-                        title="Stock Entry Append Error",
-                        message=f"{str(append_error)}\n{frappe.as_json(item)}"
-                    )
+            qty = float(item.get("qty", 0))
+            
+            # Track items with zero or negative quantities for debugging
+            if qty <= 0:
+                items_with_zero_qty.append({
+                    "item_code": item.get("item_code"),
+                    "qty": qty,
+                    "meal_type": item.get("meal_type"),
+                    "recipe": item.get("recipe")
+                })
+                continue
+            
+            try:
+                stock_entry.append("items", {
+                    "item_code": item.get("item_code"),
+                    "qty": qty,
+                    "uom": item.get("uom", "Nos"),
+                    "s_warehouse": item.get("source_warehouse") or get_default_warehouse(),
+                    "t_warehouse": target_warehouse,
+                    "cost_center": get_default_cost_center(),
+                })
+                item_append_count += 1
+            except Exception as append_error:
+                frappe.log_error(
+                    title="Stock Entry Append Error",
+                    message=f"Error appending item {item.get('item_code')}: {str(append_error)}\n{frappe.as_json(item)}"
+                )
+
+        # Log items with zero quantities for debugging
+        if items_with_zero_qty:
+            frappe.log_error(
+                title="Items with Zero Quantities Skipped",
+                message=f"The following items had zero or negative quantities and were skipped:\n{frappe.as_json(items_with_zero_qty, indent=2)}"
+            )
 
         if not stock_entry.items:
-            frappe.msgprint("No valid items with quantities > 0 were found for this meal plan and date.",
-                            title="No Valid Items", indicator="orange")
+            frappe.msgprint(
+                f"No valid items with quantities > 0 were found for this meal plan and date.<br><br>"
+                f"<b>Items with zero/negative quantities:</b> {len(items_with_zero_qty)}<br>"
+                f"Please check the Error Log for details about skipped items.",
+                title="No Valid Items", 
+                indicator="orange"
+            )
             return None
 
         try:
+            # Additional validation before insert
+            for idx, item_row in enumerate(stock_entry.items):
+                if not item_row.qty or float(item_row.qty) <= 0:
+                    frappe.throw(f"Row {idx + 1}: Item {item_row.item_code} has invalid quantity: {item_row.qty}")
+            
             stock_entry.insert()
-            frappe.msgprint(f"✅ Material Issue <b>{stock_entry.name}</b> created successfully with <b>{item_append_count}</b> items.",
-                            title="Success", indicator="green")
+            
+            success_msg = f"✅ Material Issue <b>{stock_entry.name}</b> created successfully with <b>{item_append_count}</b> items."
+            if items_with_zero_qty:
+                success_msg += f"<br><br>⚠️ Note: {len(items_with_zero_qty)} items were skipped due to zero quantities."
+            
+            frappe.msgprint(success_msg, title="Success", indicator="green")
             return stock_entry.name
+            
         except Exception as e:
-            frappe.log_error("Material Issue Insert Error", frappe.get_traceback())
-            frappe.throw("Failed to create the Material Issue. Please check the Error Log.")
+            error_msg = str(e)
+            frappe.log_error("Material Issue Insert Error", f"Error: {error_msg}\n\nStock Entry Details:\n{frappe.as_json(stock_entry.as_dict(), indent=2)}")
+            
+            if "Qty in Stock UOM can not be zero" in error_msg:
+                frappe.throw("One or more items have zero quantities. Please check your meal plan recipes and ingredient quantities.")
+            else:
+                frappe.throw(f"Failed to create the Material Issue: {error_msg}")
 
     except Exception as e:
         frappe.log_error("Daily Material Issue Fatal Error", frappe.get_traceback())
@@ -175,7 +214,6 @@ def get_daily_meal_items(meal_plan, day_of_week, issue_date):
         if not meal_id_value:
             continue
 
-        # Look up the actual document name of the Meal using its custom meal_id field
         meal_name = frappe.db.get_value("Meals", {"meal_id": meal_id_value}, "name")
         if not meal_name:
             frappe.log_error(f"Meal with meal_id '{meal_id_value}' not found", "Daily Material Issue Debug")
@@ -183,7 +221,6 @@ def get_daily_meal_items(meal_plan, day_of_week, issue_date):
 
        # frappe.log_error(f"Debug - Processing meal_id: {meal_id_value} -> {meal_name}", "Daily Material Issue Debug")
 
-        # Load the actual Meal document
         try:
             meal_doc = frappe.get_doc("Meals", meal_name)
         except frappe.DoesNotExistError:
@@ -208,14 +245,20 @@ def get_daily_meal_items(meal_plan, day_of_week, issue_date):
                 if not ing.ingredient:
                     continue
 
+                # Ensure qty is a valid number and greater than 0
+                ingredient_qty = float(ing.qty or 0)
+                if ingredient_qty <= 0:
+                    frappe.log_error(f"Ingredient {ing.ingredient} in recipe {recipe_name} has zero or negative quantity: {ingredient_qty}", "Ingredient Quantity Warning")
+                    continue
+
                 existing_item = next((item for item in items if item["item_code"] == ing.ingredient), None)
 
                 if existing_item:
-                    existing_item["qty"] += ing.qty or 0
+                    existing_item["qty"] += ingredient_qty
                 else:
                     items.append({
                         "item_code": ing.ingredient,
-                        "qty": ing.qty or 0,
+                        "qty": ingredient_qty,
                         "uom": ing.unit_of_measure or "Nos",
                         "meal_type": entry.meal_type,
                         "meal_name": meal_doc.get("meal_name", meal_name),
@@ -228,22 +271,22 @@ def get_daily_meal_items(meal_plan, day_of_week, issue_date):
 
 def get_default_warehouse():
     """Get default warehouse for material issues"""
-    # You can customize this based on your setup
+
     return frappe.db.get_single_value("Stock Settings", "default_warehouse") or "Stores - Company"
 
 def get_default_cost_center():
     """Get default cost center"""
-    # You can customize this based on your setup
+
     return frappe.db.get_value("Company", frappe.defaults.get_user_default("Company"), "cost_center")
 
 def get_default_expense_account(item_code):
     """Get default expense account for an item"""
-    # Try to get from item master first
+
     expense_account = frappe.db.get_value("Item", item_code, "expense_account")
     if expense_account:
         return expense_account
     
-    # Fallback to default
+
     return frappe.db.get_single_value("Accounts Settings", "default_expense_account") or "Cost of Goods Sold - Company"
 
 @frappe.whitelist()
