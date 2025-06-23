@@ -683,25 +683,29 @@ function fetch_meal_ingredients(frm) {
                     }
 
                     let shopping_list = r.message.map(ingredient => {
-                        let qty = ingredient.qty;
-                        let entry = meal_entries.find(e => e.meal_id === ingredient.meal_id);
-                        
-                        if (entry) {
-                            if (entry.meal_category === "LSG" && entry.selected_percentage) {
-                                qty *= entry.selected_percentage;
-                            } else {
-                                qty *= total_servings;
-                            }
+                    let qty = parseFloat(ingredient.qty); // Ensure it's a number
+                    let entry = meal_entries.find(e => e.meal_id === ingredient.meal_id);
+                    
+                    if (entry) {
+                        if (entry.meal_category === "LSG" && entry.selected_percentage) {
+                            qty *= entry.selected_percentage;
+                        } else {
+                            qty *= total_servings;
                         }
+                    }
 
-                        return {
-                            item_code: ingredient.ingredient,
-                            item_name: ingredient.ingredient_name,
-                            qty: qty,
-                            cost: ingredient.cost,
-                            uom:ingredient.unit_of_measure
-                        };
-                    });
+                    qty = Math.ceil(qty); // Always round UP
+
+                    console.log(`Rounded qty for ${ingredient.ingredient}: ${qty}`);
+
+                    return {
+                        item_code: ingredient.ingredient,
+                        item_name: ingredient.ingredient_name,
+                        qty: qty,
+                        cost: ingredient.cost,
+                        uom: ingredient.unit_of_measure
+                    };
+                });
 
                     console.log("Final Shopping List:", shopping_list);
 
@@ -713,6 +717,7 @@ function fetch_meal_ingredients(frm) {
                                 meal_plan: frm.doc.name,
                                 shopping_details: shopping_list,
                                 group_name:frm.doc.group_name,
+                                selected_projects: frm.doc.selected_projects,
                                 required_by: frm.doc.required_by,
                                 packing_list:frm.doc.packing_list
                             }
