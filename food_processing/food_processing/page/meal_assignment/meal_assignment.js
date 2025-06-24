@@ -332,11 +332,14 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                     const no_of_people = task.custom_no_of_people;
                     const start = frappe.datetime.str_to_obj(task.exp_start_date);
                     const end = frappe.datetime.str_to_obj(task.exp_end_date);
-                
+                    
+                    const taskKey = `${customer}_${task.exp_start_date}_${task.exp_end_date}`;
+
                     getColorForCustomer(customer, assignedColors);
 
-                    if (!customerMap[customer]) {
-                        customerMap[customer] = {
+                    if (!customerMap[taskKey]) {
+                        customerMap[taskKey] = {
+                            customer: customer,
                             customer_name: task.custom_customer_name || customer,
                             no_of_people: no_of_people,
                             days: {},
@@ -348,7 +351,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
                         let key = formatDate(new Date(d));
                         if (new Date(key) >= monday && new Date(key) <= sunday) {
-                            customerMap[customer].days[key] = true;
+                            customerMap[taskKey].days[key] = true;
                         }
                     }
                 });
@@ -378,8 +381,9 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
 
                 const tbody = $('<tbody></tbody>');
 
-                Object.keys(customerMap).forEach(customer => {
-                    const entry = customerMap[customer];
+                Object.keys(customerMap).forEach(taskKey => {
+                    const entry = customerMap[taskKey];
+                    const customer = entry.customer;
                     const color = assignedColors[customer];
                     const colorBox = `<span style="
                         display:inline-block;
