@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"qD0tsFS9br\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Meals And Recipes</span>\",\"col\":12}},{\"id\":\"rrs74mV12M\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Recipes\",\"col\":3}},{\"id\":\"JyRKhYSarj\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Shopping List\",\"col\":3}},{\"id\":\"-wGFCw4yhL\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Meals\",\"col\":3}},{\"id\":\"boxSWdLL8U\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Meal Plan\",\"col\":3}},{\"id\":\"LshP_-4ysT\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"tY09xfwaog\",\"type\":\"quick_list\",\"data\":{\"quick_list_name\":\"Pending Tasks\",\"col\":11}},{\"id\":\"uBqyme2bb-\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"8ZHyMqnY1t\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reports &amp; Masters</b></span>\",\"col\":12}},{\"id\":\"4orbkVGJ04\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Required Shopping Items\",\"col\":3}}]",
+ "content": "[{\"id\":\"qD0tsFS9br\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Meals And Recipes</span>\",\"col\":12}},{\"id\":\"rrs74mV12M\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Recipes\",\"col\":3}},{\"id\":\"JyRKhYSarj\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Shopping List\",\"col\":3}},{\"id\":\"-wGFCw4yhL\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Meals\",\"col\":3}},{\"id\":\"boxSWdLL8U\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Meal Plan\",\"col\":3}},{\"id\":\"LshP_-4ysT\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"6x6oWMlsrz\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Pages</b></span>\",\"col\":12}},{\"id\":\"bJmsGz3Yoq\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Meal Assignment\",\"col\":3}},{\"id\":\"ijlevCDoH6\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"tY09xfwaog\",\"type\":\"quick_list\",\"data\":{\"quick_list_name\":\"Pending Tasks\",\"col\":11}},{\"id\":\"uBqyme2bb-\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"8ZHyMqnY1t\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reports &amp; Masters</b></span>\",\"col\":12}},{\"id\":\"4orbkVGJ04\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Required Shopping Items\",\"col\":3}}]",
  "creation": "2025-05-06 08:34:42.366493",
  "custom_blocks": [],
  "docstatus": 0,
@@ -13,7 +13,7 @@
  "is_hidden": 0,
  "label": "Meals And Recipes",
  "links": [],
- "modified": "2025-05-07 10:17:18.647658",
+ "modified": "2025-07-04 08:46:32.103330",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Meals And Recipes",
@@ -35,6 +35,13 @@
  ],
  "sequence_id": 43.0,
  "shortcuts": [
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Meal Assignment",
+   "link_to": "meal-assignment",
+   "type": "Page"
+  },
   {
    "color": "Red",
    "doc_view": "List",
