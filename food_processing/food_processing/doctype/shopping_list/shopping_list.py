@@ -64,6 +64,8 @@ def create_material_request(shopping_list_name):
 
 @frappe.whitelist()
 def create_daily_meal_issue(meal_plan_name, meal_date=None, warehouse=None):
+    from frappe.utils import nowdate
+
     if not meal_date:
         meal_date = nowdate()
 
@@ -76,95 +78,107 @@ def create_daily_meal_issue(meal_plan_name, meal_date=None, warehouse=None):
     meal_entries = frappe.get_all(
         "Meal Plan Entry",
         filters={"parent": meal_plan_name, "date": meal_date},
-        fields=["meal_id", "name"]
+        fields=["meal_id", "name", "date"]
     )
-    
+
     if not meal_entries:
-        frappe.throw(f"No meal entries found for {meal_date} in Meal Plan {meal_plan_name}.")
+        frappe.throw(f"No meal entries found for date {meal_date} in Meal Plan '{meal_plan_name}'.")
+
+    frappe.msgprint(f"Found {len(meal_entries)} meal entries for {meal_date}")
+
+    # Build a normalized map of all meals
+    all_meals = frappe.get_all("Meals", fields=["name", "meal_id"])
+    meal_lookup = {
+        m.meal_id.lower().strip(): m.name for m in all_meals if m.meal_id
+    }
 
     ingredient_totals = {}
     processed_meals = 0
     processed_recipes = 0
+    matched_meals = 0
+    matched_recipes = 0
 
     for entry in meal_entries:
-        meal_custom_id = entry.meal_id
-        
-        # Find meals with matching meal_id (try multiple approaches)
-        meals = frappe.get_all("Meals", filters={"meal_id": meal_custom_id}, fields=["name"])
-        
-        # If no exact match, try trimmed values
-        if not meals:
-            meals = frappe.get_all("Meals", filters={"meal_id": meal_custom_id.strip()}, fields=["name"])
-        
-        # If still no match, try case-insensitive
-        if not meals:
-            all_meals = frappe.get_all("Meals", fields=["name", "meal_id"])
-            meals = [m for m in all_meals if m.meal_id and m.meal_id.lower().strip() == meal_custom_id.lower().strip()]
-        
-        if not meals:
-            frappe.msgprint(f"Warning: No Meal found for meal_id: {meal_custom_id}")
+        raw_meal_id = entry.meal_id or ""
+        normalized_meal_id = raw_meal_id.lower().strip()
+
+        frappe.msgprint(f"Looking up meal_id: '{raw_meal_id}' -> normalized: '{normalized_meal_id}'")
+
+        if normalized_meal_id not in meal_lookup:
+            frappe.msgprint(f"❌ No Meal found for normalized meal_id: '{normalized_meal_id}'")
             continue
 
-        for meal_doc in meals:
-            try:
-                meal = frappe.get_doc("Meals", meal_doc.name)
-                processed_meals += 1
-                
-                # Check if meal has recipes
-                if not meal.recipes:
-                    frappe.msgprint(f"Warning: Meal {meal.name} has no recipes")
-                    continue
-                
-                for recipe_link in meal.recipes:
-                    if not recipe_link.recipe_name:
-                        continue
-                        
-                    try:
-                        recipe = frappe.get_doc("Recipe", recipe_link.recipe_name)
-                        processed_recipes += 1
-                        
-                        # Check if recipe has ingredients
-                        if not recipe.ingredients:
-                            frappe.msgprint(f"Warning: Recipe {recipe.name} has no ingredients")
-                            continue
-                        
-                        for ing in recipe.ingredients:
-                            if not ing.ingredient:
-                                continue
-                                
-                            ingredient_code = ing.ingredient
-                            qty = float(ing.qty or 0)
-                            
-                            if qty > 0:  # Only add if quantity is positive
-                                ingredient_totals.setdefault(ingredient_code, 0)
-                                ingredient_totals[ingredient_code] += qty
-                                
-                    except frappe.DoesNotExistError:
-                        frappe.msgprint(f"Warning: Recipe {recipe_link.recipe_name} not found.")
-                        continue
-                        
-            except frappe.DoesNotExistError:
-                frappe.msgprint(f"Warning: Meal {meal_doc.name} not found.")
+        meal_name = meal_lookup[normalized_meal_id]
+        frappe.msgprint(f"✅ Found meal: {meal_name}")
+        matched_meals += 1
+
+        try:
+            meal = frappe.get_doc("Meals", meal_name)
+            processed_meals += 1
+
+            if not meal.recipes:
+                frappe.msgprint(f"⚠️ Meal '{meal.name}' has no recipes.")
                 continue
 
-    # Provide detailed feedback
-    frappe.msgprint(f"Processed {processed_meals} meals and {processed_recipes} recipes")
-    
-    if not ingredient_totals:
-        error_msg = f"No ingredients found for the selected meals and recipes.\n"
-        error_msg += f"Processed {processed_meals} meals and {processed_recipes} recipes.\n"
-        error_msg += f"Please check that your meals have recipes and your recipes have ingredients."
-        frappe.throw(error_msg)
+            for recipe_link in meal.recipes:
+                if not recipe_link.recipe_name:
+                    frappe.msgprint(f"⚠️ Empty recipe link in meal: {meal.name}")
+                    continue
 
-    # Create stock entry
+                try:
+                    recipe = frappe.get_doc("Recipe", recipe_link.recipe_name)
+                    processed_recipes += 1
+                    matched_recipes += 1
+                    frappe.msgprint(f"✅ Found recipe: {recipe.name}")
+
+                    if not recipe.ingredients:
+                        frappe.msgprint(f"⚠️ Recipe '{recipe.name}' has no ingredients.")
+                        continue
+
+                    for ing in recipe.ingredients:
+                        if not ing.ingredient:
+                            continue
+
+                        qty = float(ing.qty or 0)
+                        if qty > 0:
+                            ingredient_totals.setdefault(ing.ingredient, 0)
+                            ingredient_totals[ing.ingredient] += qty
+                            frappe.msgprint(f"🔹 Ingredient: {ing.ingredient}, Qty: {qty}")
+                        else:
+                            frappe.msgprint(f"⚠️ Ingredient '{ing.ingredient}' has zero quantity.")
+
+                except frappe.DoesNotExistError:
+                    frappe.msgprint(f"❗ Recipe '{recipe_link.recipe_name}' not found.")
+                    continue
+
+        except frappe.DoesNotExistError:
+            frappe.msgprint(f"❗ Meal '{meal_name}' not found.")
+            continue
+
+    # Summary
+    frappe.msgprint(
+        f"📋 Summary for {meal_date}:\n"
+        f"- Entries: {len(meal_entries)}\n"
+        f"- Matched Meals: {matched_meals}\n"
+        f"- Processed Meals: {processed_meals}\n"
+        f"- Matched Recipes: {matched_recipes}\n"
+        f"- Processed Recipes: {processed_recipes}"
+    )
+
+    if not ingredient_totals:
+        frappe.throw(f"No ingredients found for the selected meals and recipes on {meal_date}.\n"
+                     f"Processed {processed_meals} meals and {processed_recipes} recipes.\n"
+                     f"Check that meals link to recipes and recipes contain ingredients with positive quantities.")
+
+    # Create Stock Entry
     stock_entry = frappe.new_doc("Stock Entry")
     stock_entry.purpose = "Material Issue"
     stock_entry.stock_entry_type = "Material Issue"
-    stock_entry.custom_meal_plan = meal_plan_name  
-    stock_entry.custom_meal_date = meal_date     
+    stock_entry.custom_meal_plan = meal_plan_name
+    stock_entry.custom_meal_date = meal_date
 
     for item_code, total_qty in ingredient_totals.items():
-        if total_qty > 0:  # Only add items with positive quantities
+        if total_qty > 0:
             stock_entry.append("items", {
                 "item_code": item_code,
                 "qty": math.ceil(total_qty),
@@ -173,6 +187,6 @@ def create_daily_meal_issue(meal_plan_name, meal_date=None, warehouse=None):
 
     stock_entry.insert(ignore_permissions=True)
     stock_entry.submit()
-    
-    frappe.msgprint(f"Stock Entry {stock_entry.name} created with {len(ingredient_totals)} ingredients")
+
+    frappe.msgprint(f"✅ Stock Entry {stock_entry.name} created with {len(ingredient_totals)} ingredients.")
     return stock_entry.name
