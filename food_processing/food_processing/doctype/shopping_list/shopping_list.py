@@ -89,8 +89,17 @@ def create_daily_meal_issue(meal_plan_name, meal_date=None, warehouse=None):
     for entry in meal_entries:
         meal_custom_id = entry.meal_id
         
-        # Find meals with matching meal_id
+        # Find meals with matching meal_id (try multiple approaches)
         meals = frappe.get_all("Meals", filters={"meal_id": meal_custom_id}, fields=["name"])
+        
+        # If no exact match, try trimmed values
+        if not meals:
+            meals = frappe.get_all("Meals", filters={"meal_id": meal_custom_id.strip()}, fields=["name"])
+        
+        # If still no match, try case-insensitive
+        if not meals:
+            all_meals = frappe.get_all("Meals", fields=["name", "meal_id"])
+            meals = [m for m in all_meals if m.meal_id and m.meal_id.lower().strip() == meal_custom_id.lower().strip()]
         
         if not meals:
             frappe.msgprint(f"Warning: No Meal found for meal_id: {meal_custom_id}")
