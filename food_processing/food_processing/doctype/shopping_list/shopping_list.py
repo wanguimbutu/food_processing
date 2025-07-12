@@ -130,23 +130,61 @@ def create_daily_meal_issue(meal_plan_name, meal_date=None, warehouse=None):
                     frappe.msgprint(f"⚠️ Empty recipe link in meal: {meal.name}")
                     continue
 
-                # 🔍 NEW: Lookup Recipe by recipe_name field
-                recipe_doc = frappe.get_all("Recipe", filters={"recipe_name": recipe_link.recipe_name}, fields=["name"])
-                if not recipe_doc:
-                    frappe.msgprint(f"❗ Recipe with recipe_name '{recipe_link.recipe_name}' not found.")
+                # 🔍 Find recipe by recipe_name field (primary method)
+                recipe = None
+                recipe_found = False
+                
+                # Method 1: Lookup by recipe_name field value (BEEF STEW → RCP-001)
+                if hasattr(recipe_link, 'recipe_name') and recipe_link.recipe_name:
+                    recipe_docs = frappe.get_all("Recipe", 
+                                                filters={"recipe_name": recipe_link.recipe_name}, 
+                                                fields=["name", "recipe_name"])
+                    if recipe_docs:
+                        recipe = frappe.get_doc("Recipe", recipe_docs[0].name)
+                        recipe_found = True
+                        frappe.msgprint(f"✅ Found recipe: '{recipe.recipe_name}' (Document: {recipe.name})")
+                    else:
+                        frappe.msgprint(f"❌ No recipe found with recipe_name: '{recipe_link.recipe_name}'")
+                
+                # Method 2: Direct lookup by document name (fallback)
+                if not recipe_found and hasattr(recipe_link, 'recipe') and recipe_link.recipe:
+                    try:
+                        recipe = frappe.get_doc("Recipe", recipe_link.recipe)
+                        recipe_found = True
+                        frappe.msgprint(f"✅ Found recipe by document name: {recipe.name} ({getattr(recipe, 'recipe_name', 'No recipe_name field')})")
+                    except frappe.DoesNotExistError:
+                        frappe.msgprint(f"❌ Recipe document not found: {recipe_link.recipe}")
+                
+                # Method 3: Try recipe_name as document name (edge case)
+                if not recipe_found and hasattr(recipe_link, 'recipe_name') and recipe_link.recipe_name:
+                    try:
+                        recipe = frappe.get_doc("Recipe", recipe_link.recipe_name)
+                        recipe_found = True
+                        frappe.msgprint(f"✅ Found recipe by treating recipe_name as document name: {recipe.name}")
+                    except frappe.DoesNotExistError:
+                        pass  # This is expected to fail most of the time
+                
+                if not recipe_found:
+                    # Debug output
+                    available_fields = []
+                    for field in recipe_link.meta.fields:
+                        if hasattr(recipe_link, field.fieldname):
+                            value = getattr(recipe_link, field.fieldname)
+                            if value:
+                                available_fields.append(f"{field.fieldname}: '{value}'")
+                    
+                    frappe.msgprint(f"❗ Could not find recipe. Recipe link fields: {available_fields}")
                     continue
-
-                recipe = frappe.get_doc("Recipe", recipe_doc[0].name)
                 processed_recipes += 1
                 matched_recipes += 1
-                frappe.msgprint(f"✅ Found recipe: {recipe.recipe_name} ({recipe.name})")
+                frappe.msgprint(f"✅ Processing recipe: {getattr(recipe, 'recipe_name', recipe.name)}")
 
                 if not recipe.ingredients:
-                    frappe.msgprint(f"⚠️ Recipe '{recipe.recipe_name}' has no ingredients.")
+                    frappe.msgprint(f"⚠️ Recipe '{getattr(recipe, 'recipe_name', recipe.name)}' has no ingredients.")
                     continue
 
-                # Get recipe serving size (default to 1 if not specified)
-                recipe_servings = float(recipe.servings_per_recipe or 1)
+                # Get recipe serving size (check if servings field exists, default to 1)
+                recipe_servings = float(getattr(recipe, 'servings', None) or 1)
                 frappe.msgprint(f"🍽️ Recipe servings: {recipe_servings}")
 
                 for ing in recipe.ingredients:
