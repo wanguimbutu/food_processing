@@ -634,10 +634,8 @@ function validate_and_calculate(frm) {
 function fetch_meal_ingredients(frm) {
     console.log("Fetching meal ingredients...");
 
-    
-    let total_servings = frm.doc.total_servings || 0;
+    let total_servings = frm.doc.total_servings || 1;
     let total_individuals = frm.doc.total_individuals || 1;
-    let servings_to_use = (total_servings <= 1) ? total_individuals : total_servings;
     let meal_entries = frm.doc.meal_plan_entry || [];
 
     if (meal_entries.length === 0) {
@@ -673,7 +671,7 @@ function fetch_meal_ingredients(frm) {
                 method: "food_processing.food_processing.doctype.meal_plan.meal_plan.fetch_ingredients",
                 args: {
                     meal_data: meal_data,
-                    total_servings: servings_to_use,
+                    total_servings: total_servings,
                     total_individuals: total_individuals
                 },
                 callback: function(r) {
@@ -692,7 +690,7 @@ function fetch_meal_ingredients(frm) {
                         if (entry.meal_category === "LSG" && entry.selected_percentage) {
                             qty *= entry.selected_percentage;
                         } else {
-                            qty *= servings_to_use;
+                            qty *= total_servings;
                         }
                     }
 

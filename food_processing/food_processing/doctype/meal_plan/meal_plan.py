@@ -18,17 +18,14 @@ def fetch_ingredients(meal_data, total_individuals, total_servings):
     """
     Fetches meal ingredients based on selected meals.
     - LSG meals use `selected_percentage * total_individuals`
-    - Non-LSG meals use `total_servings`, unless it's <= 1, in which case `total_individuals` is used
+    - Non-LSG meals use `total_servings` provided by the frontend
     """
 
     frappe.logger().info(f"Raw meal_data: {meal_data}, total_individuals: {total_individuals}, total_servings: {total_servings}")
 
-    meal_list = json.loads(meal_data)
+    meal_list = json.loads(meal_data)  # Parse the incoming meal data
     total_individuals = float(total_individuals)
-    total_servings = float(total_servings)
-
-    # Use total_individuals if total_servings is zero or 1 or less
-    servings_to_use = total_individuals if total_servings <= 1 else total_servings
+    total_servings = float(total_servings)  # Using this as provided by the frontend
 
     meal_ids = [meal["meal_id"] for meal in meal_list]
     meal_categories = {
@@ -40,16 +37,16 @@ def fetch_ingredients(meal_data, total_individuals, total_servings):
 
     for meal in meal_list:
         meal_id = meal["meal_id"]
-        meal_category = meal_categories.get(meal_id)
+        meal_category = meal_categories.get(meal_id, None)
 
         if meal_category == "LSG":
-            selected_percentage = float(meal.get("selected_percentage", 0))
-            calculated_servings = selected_percentage * total_individuals
+            selected_percentage = float(meal.get("selected_percentage", 0))  # Default to 0 if missing
+            calculated_servings = selected_percentage * total_individuals  # LSG meals are based on % of individuals
         else:
-            calculated_servings = servings_to_use  
+            calculated_servings = total_servings  # Directly use `total_servings` from frontend for non-LSG meals
 
         frappe.logger().info(f"Meal {meal_id} ({meal_category}): Adding {calculated_servings} servings.")
-        total_meal_servings += calculated_servings
+        total_meal_servings += calculated_servings  # Accumulate total servings
 
     frappe.logger().info(f"Final total_servings for all meals: {total_meal_servings}")
     return actual_fetch_ingredients(meal_ids, total_meal_servings)
