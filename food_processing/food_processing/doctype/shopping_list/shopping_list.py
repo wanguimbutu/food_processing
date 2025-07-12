@@ -74,6 +74,12 @@ def create_daily_meal_issue(meal_plan_name, meal_date=None, warehouse=None):
     if not warehouse:
         frappe.throw("Please set a Default Warehouse in Stock Settings or choose one manually.")
 
+    # Get the meal plan document to access total individuals
+    meal_plan = frappe.get_doc("Meal Plan", meal_plan_name)
+    total_individuals = float(meal_plan.total_individuals or 1)  # Default to 1 if not set
+    
+    frappe.msgprint(f"Meal Plan: {meal_plan_name}, Total Individuals: {total_individuals}")
+
     meal_entries = frappe.get_all(
         "Meal Plan Entry",
         filters={"parent": meal_plan_name, "date": meal_date},
@@ -139,15 +145,25 @@ def create_daily_meal_issue(meal_plan_name, meal_date=None, warehouse=None):
                     frappe.msgprint(f"⚠️ Recipe '{recipe.recipe_name}' has no ingredients.")
                     continue
 
+                # Get recipe serving size (default to 1 if not specified)
+                recipe_servings = float(recipe.servings_per_recipe or 1)
+                frappe.msgprint(f"🍽️ Recipe servings: {recipe_servings}")
+
                 for ing in recipe.ingredients:
                     if not ing.ingredient:
                         continue
 
-                    qty = float(ing.qty or 0)
-                    if qty > 0:
+                    base_qty = float(ing.qty or 0)
+                    if base_qty > 0:
+                        # Calculate quantity per serving, then multiply by total individuals
+                        qty_per_serving = base_qty / recipe_servings
+                        total_qty = qty_per_serving * total_individuals
+                        
                         ingredient_totals.setdefault(ing.ingredient, 0)
-                        ingredient_totals[ing.ingredient] += qty
-                        frappe.msgprint(f"🔹 Ingredient: {ing.ingredient}, Qty: {qty}")
+                        ingredient_totals[ing.ingredient] += total_qty
+                        
+                        frappe.msgprint(f"🔹 Ingredient: {ing.ingredient}")
+                        frappe.msgprint(f"   Base qty: {base_qty}, Per serving: {qty_per_serving:.3f}, Total for {total_individuals} individuals: {total_qty:.3f}")
                     else:
                         frappe.msgprint(f"⚠️ Ingredient '{ing.ingredient}' has zero quantity.")
 
@@ -158,6 +174,7 @@ def create_daily_meal_issue(meal_plan_name, meal_date=None, warehouse=None):
     # Summary
     frappe.msgprint(
         f"📋 Summary for {meal_date}:\n"
+        f"- Total Individuals: {total_individuals}\n"
         f"- Entries: {len(meal_entries)}\n"
         f"- Matched Meals: {matched_meals}\n"
         f"- Processed Meals: {processed_meals}\n"
@@ -189,5 +206,5 @@ def create_daily_meal_issue(meal_plan_name, meal_date=None, warehouse=None):
     stock_entry.insert(ignore_permissions=True)
     stock_entry.submit()
 
-    frappe.msgprint(f"✅ Stock Entry {stock_entry.name} created with {len(ingredient_totals)} ingredients.")
+    frappe.msgprint(f"✅ Stock Entry {stock_entry.name} created with {len(ingredient_totals)} ingredients for {total_individuals} individuals.")
     return stock_entry.name
