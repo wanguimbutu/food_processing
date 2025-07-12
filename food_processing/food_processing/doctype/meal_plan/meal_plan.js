@@ -690,7 +690,8 @@ function fetch_meal_ingredients(frm) {
                         if (entry.meal_category === "LSG" && entry.selected_percentage) {
                             qty *= entry.selected_percentage;
                         } else {
-                            qty *= total_servings;
+                            let multiplier = total_servings <= 1 ? total_individuals : total_servings;
+                                qty *= multiplier;
                         }
                     }
 
