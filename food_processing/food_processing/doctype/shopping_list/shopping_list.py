@@ -80,6 +80,7 @@ def create_daily_meal_issue(meal_plan_name, meal_date=None, warehouse=None):
     
     frappe.msgprint(f"Meal Plan: {meal_plan_name}, Total Individuals: {total_individuals}")
 
+    # Get meal entries for the specific date
     meal_entries = frappe.get_all(
         "Meal Plan Entry",
         filters={"parent": meal_plan_name, "date": meal_date},
@@ -91,7 +92,7 @@ def create_daily_meal_issue(meal_plan_name, meal_date=None, warehouse=None):
 
     frappe.msgprint(f"Found {len(meal_entries)} meal entries for {meal_date}")
 
-    # Build normalized meal lookup
+    # Build normalized meal lookup for better matching
     all_meals = frappe.get_all("Meals", fields=["name", "meal_id"])
     meal_lookup = {
         m.meal_id.lower().strip(): m.name for m in all_meals if m.meal_id
@@ -101,7 +102,6 @@ def create_daily_meal_issue(meal_plan_name, meal_date=None, warehouse=None):
     processed_meals = 0
     processed_recipes = 0
     matched_meals = 0
-    matched_recipes = 0
 
     for entry in meal_entries:
         raw_meal_id = entry.meal_id or ""
@@ -125,117 +125,90 @@ def create_daily_meal_issue(meal_plan_name, meal_date=None, warehouse=None):
                 frappe.msgprint(f"⚠️ Meal '{meal.name}' has no recipes.")
                 continue
 
+            frappe.msgprint(f"📋 Processing {len(meal.recipes)} recipes for meal: {meal.name}")
+
             for recipe_link in meal.recipes:
                 if not recipe_link.recipe_name:
-                    frappe.msgprint(f"⚠️ Empty recipe link in meal: {meal.name}")
+                    frappe.msgprint(f"⚠️ Empty recipe_name in meal: {meal.name}")
                     continue
 
-                # 🔍 Find recipe by recipe_name field with fuzzy matching
-                recipe = None
-                recipe_found = False
-                
-                if hasattr(recipe_link, 'recipe_name') and recipe_link.recipe_name:
-                    search_name = recipe_link.recipe_name.strip()
-                    
-                    # Method 1: Exact match
-                    recipe_docs = frappe.get_all("Recipe", 
-                                                filters={"recipe_name": search_name}, 
-                                                fields=["name", "recipe_name"])
-                    if recipe_docs:
-                        recipe = frappe.get_doc("Recipe", recipe_docs[0].name)
-                        recipe_found = True
-                        frappe.msgprint(f"✅ Found recipe (exact): '{recipe.recipe_name}' (Document: {recipe.name})")
-                    else:
-                        # Method 2: Case-insensitive match
-                        all_recipes = frappe.get_all("Recipe", fields=["name", "recipe_name"])
-                        for r in all_recipes:
-                            if r.recipe_name and r.recipe_name.lower().strip() == search_name.lower():
-                                recipe = frappe.get_doc("Recipe", r.name)
-                                recipe_found = True
-                                frappe.msgprint(f"✅ Found recipe (case-insensitive): '{recipe.recipe_name}' (Document: {recipe.name})")
-                                break
-                        
-                        if not recipe_found:
-                            # Method 3: Partial match
-                            for r in all_recipes:
-                                if r.recipe_name and (search_name.lower() in r.recipe_name.lower() or 
-                                                    r.recipe_name.lower() in search_name.lower()):
-                                    recipe = frappe.get_doc("Recipe", r.name)
-                                    recipe_found = True
-                                    frappe.msgprint(f"✅ Found recipe (partial match): '{recipe.recipe_name}' (Document: {recipe.name}) - searched for '{search_name}'")
-                                    break
-                        
-                        if not recipe_found:
-                            # Show available recipes for debugging
-                            available_recipes = [r.recipe_name for r in all_recipes if r.recipe_name]
-                            frappe.msgprint(f"❌ Recipe '{search_name}' not found. Available recipes: {available_recipes[:10]}...")
-                
-                # Method 4: Direct lookup by document name (fallback)
-                if not recipe_found and hasattr(recipe_link, 'recipe') and recipe_link.recipe:
-                    try:
-                        recipe = frappe.get_doc("Recipe", recipe_link.recipe)
-                        recipe_found = True
-                        frappe.msgprint(f"✅ Found recipe by document name: {recipe.name} ({getattr(recipe, 'recipe_name', 'No recipe_name field')})")
-                    except frappe.DoesNotExistError:
-                        frappe.msgprint(f"❌ Recipe document not found: {recipe_link.recipe}")
-                
-                if not recipe_found:
-                    continue
-                processed_recipes += 1
-                matched_recipes += 1
-                frappe.msgprint(f"✅ Processing recipe: {getattr(recipe, 'recipe_name', recipe.name)}")
+                try:
+                    # Since recipe_name is a link field, we can directly get the document
+                    recipe = frappe.get_doc("Recipe", recipe_link.recipe_name)
+                    processed_recipes += 1
+                    frappe.msgprint(f"✅ Processing recipe: {recipe.name}")
 
-                if not recipe.ingredients:
-                    frappe.msgprint(f"⚠️ Recipe '{getattr(recipe, 'recipe_name', recipe.name)}' has no ingredients.")
-                    continue
-
-                # Get recipe serving size (check if servings field exists, default to 1)
-                recipe_servings = float(getattr(recipe, 'servings', None) or 1)
-                frappe.msgprint(f"🍽️ Recipe servings: {recipe_servings}")
-
-                for ing in recipe.ingredients:
-                    if not ing.ingredient:
+                    if not recipe.ingredients:
+                        frappe.msgprint(f"⚠️ Recipe '{recipe.name}' has no ingredients.")
                         continue
 
-                    base_qty = float(ing.qty or 0)
-                    if base_qty > 0:
-                        # Check if the ingredient is a valid stock item
-                        item_doc = frappe.get_doc("Item", ing.ingredient)
-                        if not item_doc.is_stock_item:
-                            frappe.msgprint(f"⚠️ Skipping '{ing.ingredient}' - not a stock item")
+                    # Get recipe serving size (check if servings field exists, default to 1)
+                    recipe_servings = float(getattr(recipe, 'servings', None) or 1)
+                    frappe.msgprint(f"🍽️ Recipe '{recipe.name}' servings: {recipe_servings}")
+
+                    for ing in recipe.ingredients:
+                        if not ing.ingredient:
+                            frappe.msgprint(f"⚠️ Empty ingredient in recipe: {recipe.name}")
                             continue
+
+                        base_qty = float(ing.qty or 0)
+                        if base_qty <= 0:
+                            frappe.msgprint(f"⚠️ Ingredient '{ing.ingredient}' has zero or negative quantity: {base_qty}")
+                            continue
+
+                        try:
+                            # Check if the ingredient is a valid stock item
+                            item_doc = frappe.get_doc("Item", ing.ingredient)
+                            if not item_doc.is_stock_item:
+                                frappe.msgprint(f"⚠️ Skipping '{ing.ingredient}' - not a stock item")
+                                continue
+                            
+                            # Calculate quantity per serving, then multiply by total individuals
+                            qty_per_serving = base_qty / recipe_servings
+                            total_qty = qty_per_serving * total_individuals
+                            
+                            ingredient_totals.setdefault(ing.ingredient, 0)
+                            ingredient_totals[ing.ingredient] += total_qty
+                            
+                            frappe.msgprint(f"🔹 Ingredient: {ing.ingredient}")
+                            frappe.msgprint(f"   Base qty: {base_qty}, Per serving: {qty_per_serving:.3f}, Total for {total_individuals} individuals: {total_qty:.3f}")
                         
-                        # Calculate quantity per serving, then multiply by total individuals
-                        qty_per_serving = base_qty / recipe_servings
-                        total_qty = qty_per_serving * total_individuals
-                        
-                        ingredient_totals.setdefault(ing.ingredient, 0)
-                        ingredient_totals[ing.ingredient] += total_qty
-                        
-                        frappe.msgprint(f"🔹 Ingredient: {ing.ingredient}")
-                        frappe.msgprint(f"   Base qty: {base_qty}, Per serving: {qty_per_serving:.3f}, Total for {total_individuals} individuals: {total_qty:.3f}")
-                    else:
-                        frappe.msgprint(f"⚠️ Ingredient '{ing.ingredient}' has zero quantity.")
+                        except frappe.DoesNotExistError:
+                            frappe.msgprint(f"❌ Item '{ing.ingredient}' not found in system")
+                            continue
+
+                except frappe.DoesNotExistError:
+                    frappe.msgprint(f"❌ Recipe '{recipe_link.recipe_name}' not found")
+                    continue
+                except Exception as e:
+                    frappe.msgprint(f"❌ Error processing recipe '{recipe_link.recipe_name}': {str(e)}")
+                    continue
 
         except frappe.DoesNotExistError:
             frappe.msgprint(f"❗ Meal '{meal_name}' not found.")
+            continue
+        except Exception as e:
+            frappe.msgprint(f"❗ Error processing meal '{meal_name}': {str(e)}")
             continue
 
     # Summary
     frappe.msgprint(
         f"📋 Summary for {meal_date}:\n"
         f"- Total Individuals: {total_individuals}\n"
-        f"- Entries: {len(meal_entries)}\n"
+        f"- Meal Entries: {len(meal_entries)}\n"
         f"- Matched Meals: {matched_meals}\n"
         f"- Processed Meals: {processed_meals}\n"
-        f"- Matched Recipes: {matched_recipes}\n"
-        f"- Processed Recipes: {processed_recipes}"
+        f"- Processed Recipes: {processed_recipes}\n"
+        f"- Unique Ingredients: {len(ingredient_totals)}"
     )
 
     if not ingredient_totals:
         frappe.throw(f"No ingredients found for the selected meals and recipes on {meal_date}.\n"
                      f"Processed {processed_meals} meals and {processed_recipes} recipes.\n"
-                     f"Check that meals link to recipes (via recipe_name field), and that recipes contain ingredients with positive quantities.")
+                     f"Please check:\n"
+                     f"1. Meals have recipes linked via recipe_name field\n"
+                     f"2. Recipes contain ingredients with positive quantities\n"
+                     f"3. Ingredients are valid stock items")
 
     # Create Stock Entry
     stock_entry = frappe.new_doc("Stock Entry")
@@ -254,7 +227,7 @@ def create_daily_meal_issue(meal_plan_name, meal_date=None, warehouse=None):
             })
 
     stock_entry.insert(ignore_permissions=True)
-    stock_entry.submit()
+   # stock_entry.submit()
 
     frappe.msgprint(f"✅ Stock Entry {stock_entry.name} created with {len(ingredient_totals)} ingredients for {total_individuals} individuals.")
     return stock_entry.name
