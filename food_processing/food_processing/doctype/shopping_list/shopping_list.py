@@ -282,7 +282,7 @@ def create_daily_meal_issue(meal_plan_name, meal_date=None, warehouse=None):
             })
 
     stock_entry.insert(ignore_permissions=True)
-    stock_entry.submit()
+   # stock_entry.submit()
 
     frappe.msgprint(f"✅ Stock Entry {stock_entry.name} created with {len(ingredient_totals)} ingredients for {total_individuals} individuals.")
     return stock_entry.name
