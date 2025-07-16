@@ -121,67 +121,125 @@ def create_daily_meal_issue(meal_plan_name, meal_date=None, warehouse=None):
             meal = frappe.get_doc("Meals", meal_name)
             processed_meals += 1
 
-            if not meal.recipes:
-                frappe.msgprint(f"⚠️ Meal '{meal.name}' has no recipes.")
+            # Debug: Check what's in the meal document
+            frappe.msgprint(f"🔍 Meal document loaded: {meal.name}")
+            frappe.msgprint(f"🔍 Available fields: {list(meal.as_dict().keys())}")
+            
+            # Access Recipe Details child table
+            recipe_details = frappe.get_all(
+                "Recipe Details",
+                filters={"parent": meal.name},
+                fields=["*"]
+            )
+            
+            if not recipe_details:
+                frappe.msgprint(f"⚠️ Meal '{meal.name}' has no Recipe Details")
                 continue
 
-            frappe.msgprint(f"📋 Processing {len(meal.recipes)} recipes for meal: {meal.name}")
+            frappe.msgprint(f"📋 Processing {len(recipe_details)} recipes for meal: {meal.name}")
 
-            for recipe_link in meal.recipes:
-                if not recipe_link.recipe_name:
-                    frappe.msgprint(f"⚠️ Empty recipe_name in meal: {meal.name}")
+            # Debug: Show what's in each recipe record
+            for i, recipe_link in enumerate(recipe_details):
+                frappe.msgprint(f"🔍 Recipe {i+1}: {recipe_link}")
+
+            for recipe_link in recipe_details:
+                # Debug: Check all available fields in recipe_link
+                frappe.msgprint(f"🔍 Recipe link fields: {list(recipe_link.keys())}")
+                frappe.msgprint(f"🔍 Recipe link data: {recipe_link}")
+                
+                # Try different field names that might contain the recipe reference
+                recipe_reference = None
+                if 'recipe_name' in recipe_link and recipe_link['recipe_name']:
+                    recipe_reference = recipe_link['recipe_name']
+                    frappe.msgprint(f"✅ Found recipe_name: {recipe_reference}")
+                elif 'recipe' in recipe_link and recipe_link['recipe']:
+                    recipe_reference = recipe_link['recipe']
+                    frappe.msgprint(f"✅ Found recipe: {recipe_reference}")
+                else:
+                    frappe.msgprint(f"❌ No recipe reference found in recipe link")
                     continue
 
                 try:
-                    # Since recipe_name is a link field, we can directly get the document
-                    recipe = frappe.get_doc("Recipe", recipe_link.recipe_name)
+                    # Get the recipe document
+                    recipe = frappe.get_doc("Recipe", recipe_reference)
                     processed_recipes += 1
                     frappe.msgprint(f"✅ Processing recipe: {recipe.name}")
 
+                    # Debug: Check recipe fields
+                    frappe.msgprint(f"🔍 Recipe fields: {list(recipe.as_dict().keys())}")
+
+                    if not hasattr(recipe, 'ingredients'):
+                        frappe.msgprint(f"❌ Recipe '{recipe.name}' has no 'ingredients' field")
+                        continue
+                        
                     if not recipe.ingredients:
-                        frappe.msgprint(f"⚠️ Recipe '{recipe.name}' has no ingredients.")
+                        frappe.msgprint(f"⚠️ Recipe '{recipe.name}' has empty ingredients field")
                         continue
 
                     # Get recipe serving size (check if servings field exists, default to 1)
                     recipe_servings = float(getattr(recipe, 'servings', None) or 1)
                     frappe.msgprint(f"🍽️ Recipe '{recipe.name}' servings: {recipe_servings}")
 
+                    frappe.msgprint(f"📋 Processing {len(recipe.ingredients)} ingredients for recipe: {recipe.name}")
+
                     for ing in recipe.ingredients:
-                        if not ing.ingredient:
-                            frappe.msgprint(f"⚠️ Empty ingredient in recipe: {recipe.name}")
+                        # Debug: Check ingredient fields
+                        ing_dict = ing.as_dict()
+                        frappe.msgprint(f"🔍 Ingredient fields: {list(ing_dict.keys())}")
+                        frappe.msgprint(f"🔍 Ingredient data: {ing_dict}")
+
+                        # Try different field names for ingredient reference
+                        ingredient_code = None
+                        if hasattr(ing, 'ingredient') and ing.ingredient:
+                            ingredient_code = ing.ingredient
+                        elif hasattr(ing, 'item_code') and ing.item_code:
+                            ingredient_code = ing.item_code
+                        elif hasattr(ing, 'item') and ing.item:
+                            ingredient_code = ing.item
+                        
+                        if not ingredient_code:
+                            frappe.msgprint(f"⚠️ Empty ingredient reference in recipe: {recipe.name}")
                             continue
 
-                        base_qty = float(ing.qty or 0)
+                        # Try different field names for quantity
+                        base_qty = 0
+                        if hasattr(ing, 'qty') and ing.qty:
+                            base_qty = float(ing.qty)
+                        elif hasattr(ing, 'quantity') and ing.quantity:
+                            base_qty = float(ing.quantity)
+                        elif hasattr(ing, 'amount') and ing.amount:
+                            base_qty = float(ing.amount)
+                        
                         if base_qty <= 0:
-                            frappe.msgprint(f"⚠️ Ingredient '{ing.ingredient}' has zero or negative quantity: {base_qty}")
+                            frappe.msgprint(f"⚠️ Ingredient '{ingredient_code}' has zero or negative quantity: {base_qty}")
                             continue
 
                         try:
                             # Check if the ingredient is a valid stock item
-                            item_doc = frappe.get_doc("Item", ing.ingredient)
+                            item_doc = frappe.get_doc("Item", ingredient_code)
                             if not item_doc.is_stock_item:
-                                frappe.msgprint(f"⚠️ Skipping '{ing.ingredient}' - not a stock item")
+                                frappe.msgprint(f"⚠️ Skipping '{ingredient_code}' - not a stock item")
                                 continue
                             
                             # Calculate quantity per serving, then multiply by total individuals
                             qty_per_serving = base_qty / recipe_servings
                             total_qty = qty_per_serving * total_individuals
                             
-                            ingredient_totals.setdefault(ing.ingredient, 0)
-                            ingredient_totals[ing.ingredient] += total_qty
+                            ingredient_totals.setdefault(ingredient_code, 0)
+                            ingredient_totals[ingredient_code] += total_qty
                             
-                            frappe.msgprint(f"🔹 Ingredient: {ing.ingredient}")
+                            frappe.msgprint(f"🔹 Ingredient: {ingredient_code}")
                             frappe.msgprint(f"   Base qty: {base_qty}, Per serving: {qty_per_serving:.3f}, Total for {total_individuals} individuals: {total_qty:.3f}")
                         
                         except frappe.DoesNotExistError:
-                            frappe.msgprint(f"❌ Item '{ing.ingredient}' not found in system")
+                            frappe.msgprint(f"❌ Item '{ingredient_code}' not found in system")
                             continue
 
                 except frappe.DoesNotExistError:
-                    frappe.msgprint(f"❌ Recipe '{recipe_link.recipe_name}' not found")
+                    frappe.msgprint(f"❌ Recipe '{recipe_reference}' not found")
                     continue
                 except Exception as e:
-                    frappe.msgprint(f"❌ Error processing recipe '{recipe_link.recipe_name}': {str(e)}")
+                    frappe.msgprint(f"❌ Error processing recipe '{recipe_reference}': {str(e)}")
                     continue
 
         except frappe.DoesNotExistError:
@@ -206,9 +264,10 @@ def create_daily_meal_issue(meal_plan_name, meal_date=None, warehouse=None):
         frappe.throw(f"No ingredients found for the selected meals and recipes on {meal_date}.\n"
                      f"Processed {processed_meals} meals and {processed_recipes} recipes.\n"
                      f"Please check:\n"
-                     f"1. Meals have recipes linked via recipe_name field\n"
+                     f"1. Meals have recipes linked properly\n"
                      f"2. Recipes contain ingredients with positive quantities\n"
-                     f"3. Ingredients are valid stock items")
+                     f"3. Ingredients are valid stock items\n"
+                     f"4. Field names match your doctype structure")
 
     # Create Stock Entry
     stock_entry = frappe.new_doc("Stock Entry")
@@ -227,7 +286,7 @@ def create_daily_meal_issue(meal_plan_name, meal_date=None, warehouse=None):
             })
 
     stock_entry.insert(ignore_permissions=True)
-   # stock_entry.submit()
+    stock_entry.submit()
 
     frappe.msgprint(f"✅ Stock Entry {stock_entry.name} created with {len(ingredient_totals)} ingredients for {total_individuals} individuals.")
     return stock_entry.name
