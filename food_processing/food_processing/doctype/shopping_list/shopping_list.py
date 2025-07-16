@@ -125,11 +125,11 @@ def create_daily_meal_issue(meal_plan_name, meal_date=None, warehouse=None):
             frappe.msgprint(f"🔍 Meal document loaded: {meal.name}")
             frappe.msgprint(f"🔍 Available fields: {list(meal.as_dict().keys())}")
             
-            # Access Recipe Details child table
+            # Access Recipe Details child table - get the actual link field value
             recipe_details = frappe.get_all(
                 "Recipe Details",
                 filters={"parent": meal.name},
-                fields=["*"]
+                fields=["name", "recipe_name"]  # recipe_name contains the actual document name like REC-0012
             )
             
             if not recipe_details:
@@ -147,23 +147,19 @@ def create_daily_meal_issue(meal_plan_name, meal_date=None, warehouse=None):
                 frappe.msgprint(f"🔍 Recipe link fields: {list(recipe_link.keys())}")
                 frappe.msgprint(f"🔍 Recipe link data: {recipe_link}")
                 
-                # Try different field names that might contain the recipe reference
-                recipe_reference = None
-                if 'recipe_name' in recipe_link and recipe_link['recipe_name']:
-                    recipe_reference = recipe_link['recipe_name']
-                    frappe.msgprint(f"✅ Found recipe_name: {recipe_reference}")
-                elif 'recipe' in recipe_link and recipe_link['recipe']:
-                    recipe_reference = recipe_link['recipe']
-                    frappe.msgprint(f"✅ Found recipe: {recipe_reference}")
-                else:
-                    frappe.msgprint(f"❌ No recipe reference found in recipe link")
+                # Get the actual document name from the link field
+                recipe_reference = recipe_link.get('recipe_name')
+                if not recipe_reference:
+                    frappe.msgprint(f"❌ No recipe_name found in recipe link")
                     continue
+                
+                frappe.msgprint(f"✅ Found recipe document name: {recipe_reference}")
 
                 try:
-                    # Get the recipe document
+                    # Direct lookup using the document name (like REC-0012)
                     recipe = frappe.get_doc("Recipe", recipe_reference)
                     processed_recipes += 1
-                    frappe.msgprint(f"✅ Processing recipe: {recipe.name}")
+                    frappe.msgprint(f"✅ Processing recipe: {recipe.name} (Title: {getattr(recipe, 'title', 'No title')})")
 
                     # Debug: Check recipe fields
                     frappe.msgprint(f"🔍 Recipe fields: {list(recipe.as_dict().keys())}")
