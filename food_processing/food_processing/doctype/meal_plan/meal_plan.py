@@ -49,9 +49,9 @@ def fetch_ingredients(meal_data, total_individuals, total_servings):
         total_meal_servings += calculated_servings  # Accumulate total servings
 
     frappe.logger().info(f"Final total_servings for all meals: {total_meal_servings}")
-    return actual_fetch_ingredients(meal_ids, total_meal_servings)
+    return actual_fetch_ingredients(meal_ids, total_meal_servings, total_individuals)
 
-def actual_fetch_ingredients(meal_ids, total_servings):
+def actual_fetch_ingredients(meal_ids, total_servings, total_individuals=1):
     """
     Fetches ingredients for the given meal_ids and calculates quantities.
     """
@@ -59,6 +59,7 @@ def actual_fetch_ingredients(meal_ids, total_servings):
         meal_ids = json.loads(meal_ids)
 
     total_servings = float(total_servings)
+    total_individuals = float(total_individuals)
     ingredient_list = {}
 
     for meal_id in meal_ids:
@@ -86,7 +87,7 @@ def actual_fetch_ingredients(meal_ids, total_servings):
                 item_code = ingredient.ingredient  
                 unit = ingredient.unit_of_measure
                 qty_per_serving = float(ingredient.qty)
-                final_qty = qty_per_serving * total_servings
+                final_qty = qty_per_serving * total_individuals * total_servings
 
                 item_rate = frappe.db.get_value(
                     "Item Price",
@@ -115,7 +116,6 @@ def actual_fetch_ingredients(meal_ids, total_servings):
 
     frappe.logger().info(f"Final ingredient list: {ingredient_list}")
     return list(ingredient_list.values())
-
 
 @frappe.whitelist()
 def get_meals_by_category(category, start=0, page_length=5, sort_order="asc"):

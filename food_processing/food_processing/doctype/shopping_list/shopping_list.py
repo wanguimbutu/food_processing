@@ -5,6 +5,7 @@ import frappe
 from frappe.model.document import Document
 import math
 from frappe.utils import nowdate
+import math
 
 class ShoppingList(Document):
      def on_submit(self):
@@ -265,6 +266,7 @@ def create_daily_meal_issue(meal_plan_name, meal_date=None, warehouse=None):
                      f"3. Ingredients are valid stock items\n"
                      f"4. Field names match your doctype structure")
 
+ 
     # Create Stock Entry
     stock_entry = frappe.new_doc("Stock Entry")
     stock_entry.purpose = "Material Issue"
@@ -273,16 +275,19 @@ def create_daily_meal_issue(meal_plan_name, meal_date=None, warehouse=None):
     stock_entry.custom_meal_date = meal_date
 
     for item_code, total_qty in ingredient_totals.items():
-        safe_qty = round(float(total_qty), 3)
-        if safe_qty > 0:
+        # Use math.ceil to round up to nearest integer
+        # 2.2 becomes 3, 1.5 becomes 2, 1.1 becomes 2
+        rounded_qty = math.ceil(float(total_qty))
+        
+        if rounded_qty > 0:
             stock_entry.append("items", {
                 "item_code": item_code,
-                "qty": safe_qty,
+                "qty": rounded_qty,
                 "s_warehouse": warehouse
             })
 
     stock_entry.insert(ignore_permissions=True)
-   # stock_entry.submit()
+    # stock_entry.submit()
 
     frappe.msgprint(f"✅ Stock Entry {stock_entry.name} created with {len(ingredient_totals)} ingredients for {total_individuals} individuals.")
     return stock_entry.name
