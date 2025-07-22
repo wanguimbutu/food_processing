@@ -225,6 +225,19 @@ def remove_meal_assignment(date, meal_type, customer):
         return "error"
     
 @frappe.whitelist()
+def save_meal_plan_summary(monday, total_individuals):
+    from frappe.utils import getdate
+    monday = getdate(monday)
+    plans = frappe.get_all("Meal Plan", filters={"start_date": monday}, fields=["name"])
+    if not plans:
+        return "not_found"
+    plan_doc = frappe.get_doc("Meal Plan", plans[0].name)
+    plan_doc.total_individuals = int(total_individuals or 0)
+    plan_doc.save()
+    frappe.db.commit()
+    return "OK"
+   
+@frappe.whitelist()
 def submit_meal_plan(monday):
     from frappe.utils import getdate
     import traceback

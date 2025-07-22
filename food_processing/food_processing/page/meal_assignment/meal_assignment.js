@@ -28,59 +28,79 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
     }
 
     function submitMealPlanForWeek(mondayDate) {
-        const mondayStr = frappe.datetime.obj_to_str(mondayDate);  // Use system format (YYYY-MM-DD)
-    
-        console.log("Submitting meal plan for date:", mondayStr);
-    
-        frappe.call({
-            method: 'food_processing.food_processing.page.meal_assignment.meal_assignment.submit_meal_plan',
-            args: {
-                monday: mondayStr
-            },
-            callback: function(r) {
-                console.log("Response from submit_meal_plan:", r);
-    
-                if (!r || !r.message) {
-                    frappe.msgprint(__('No response from server'));
-                    return;
-                }
-    
-                if (r.message === 'submitted') {
-                    frappe.msgprint(__('Meal Plan submitted successfully'));
-    
-                    // Call create_shopping_list
-                    console.log("Calling create_shopping_list for:", mondayStr);
-                    frappe.call({
-                        method: 'food_processing.food_processing.page.meal_assignment.meal_assignment.create_shopping_list',
-                        args: {
-                            monday: mondayStr
-                        },
-                        callback: function(resp) {
-                            console.log("Response from create_shopping_list:", resp);
-                            if (resp.message === 'created') {
-                                frappe.msgprint(__('Shopping List created successfully'));
-                            } else {
-                                frappe.msgprint(__('Error creating Shopping List'));
-                            }
+    const mondayStr = frappe.datetime.obj_to_str(mondayDate);  // Use system format (YYYY-MM-DD)
+    const totalIndividuals = parseInt($('#total-people').text()) || 0;
+
+    console.log("Saving meal plan summary for date:", mondayStr);
+
+    frappe.call({
+        method: 'food_processing.food_processing.page.meal_assignment.meal_assignment.save_meal_plan_summary',
+        args: {
+            monday: mondayStr,
+            total_individuals: totalIndividuals
+        },
+        callback: function(res) {
+            if (res.message === "OK") {
+                console.log("Summary saved. Proceeding to submit Meal Plan...");
+
+                frappe.call({
+                    method: 'food_processing.food_processing.page.meal_assignment.meal_assignment.submit_meal_plan',
+                    args: {
+                        monday: mondayStr
+                    },
+                    callback: function(r) {
+                        console.log("Response from submit_meal_plan:", r);
+
+                        if (!r || !r.message) {
+                            frappe.msgprint(__('No response from server'));
+                            return;
                         }
-                    });
-    
-                } else if (r.message === 'not_found') {
-                    frappe.msgprint(__('No Meal Plan found for this week'));
-                } else if (r.message === 'already_submitted') {
-                    frappe.msgprint(__('Meal Plan already submitted'));
-                } else {
-                    frappe.msgprint(__('Error submitting Meal Plan'));
-                }
-            },
-            error: function(err) {
-                console.error("Error during frappe.call to submit_meal_plan:", err);
-                frappe.msgprint(__('Server error submitting Meal Plan'));
+
+                        if (r.message === 'submitted') {
+                            frappe.msgprint(__('Meal Plan submitted successfully'));
+
+                            // Call create_shopping_list
+                            console.log("Calling create_shopping_list for:", mondayStr);
+                            frappe.call({
+                                method: 'food_processing.food_processing.page.meal_assignment.meal_assignment.create_shopping_list',
+                                args: {
+                                    monday: mondayStr
+                                },
+                                callback: function(resp) {
+                                    console.log("Response from create_shopping_list:", resp);
+                                    if (resp.message === 'created') {
+                                        frappe.msgprint(__('Shopping List created successfully'));
+                                    } else {
+                                        frappe.msgprint(__('Error creating Shopping List'));
+                                    }
+                                }
+                            });
+
+                        } else if (r.message === 'not_found') {
+                            frappe.msgprint(__('No Meal Plan found for this week'));
+                        } else if (r.message === 'already_submitted') {
+                            frappe.msgprint(__('Meal Plan already submitted'));
+                        } else {
+                            frappe.msgprint(__('Error submitting Meal Plan'));
+                        }
+                    },
+                    error: function(err) {
+                        console.error("Error during frappe.call to submit_meal_plan:", err);
+                        frappe.msgprint(__('Server error submitting Meal Plan'));
+                    }
+                });
+
+            } else {
+                frappe.msgprint(__('Could not update total individuals before submitting the Meal Plan'));
             }
-        });
-    }
-    
-    
+        },
+        error: function(err) {
+            console.error("Error updating total individuals:", err);
+            frappe.msgprint(__('Failed to update total individuals before submit'));
+        }
+    });
+}
+
     
     // Fixed function to get visible dates for the current week
     function getVisibleDates(monday) {
