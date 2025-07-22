@@ -339,6 +339,8 @@ def create_shopping_list(monday):
         return None
 
 
+import math
+
 def _generate_shopping_list(meal_plan_doc):
     try:
         frappe.msgprint(f"Generating shopping list for: {meal_plan_doc.name}")
@@ -408,13 +410,15 @@ def _generate_shopping_list(meal_plan_doc):
 
                                     frappe.logger().info(f"Calculating for {item_code}: base_qty={qty} * frequency={frequency} * total_individuals={total_individuals} = {total_qty}")
 
-                                    # Clamp and round total_cost
+                                    # Round up quantity using math.ceil (6.8 -> 7, 1.1 -> 2)
+                                    total_qty = math.ceil(total_qty) if total_qty > 0 else 0
+
+                                    # Clamp and round total_cost to 2 decimal places
                                     if total_cost > MAX_COST:
                                         frappe.logger().warning(f"Cost for {item_code} capped from {total_cost} to {MAX_COST}")
                                         total_cost = MAX_COST
 
                                     total_cost = round(total_cost, 2)
-                                    total_qty = round(total_qty, 2)
 
                                     if item_code in ingredient_totals:
                                         ingredient_totals[item_code]['qty'] += total_qty
@@ -433,8 +437,8 @@ def _generate_shopping_list(meal_plan_doc):
                 frappe.logger().error(f"Error processing meal {meal_id}: {str(meal_error)}")
 
         for ingredient_data in ingredient_totals.values():
-            # Round again before saving
-            ingredient_data['qty'] = round(ingredient_data['qty'], 2)
+            # Apply ceiling rounding to final quantities and round cost to 2 decimal places
+            ingredient_data['qty'] = math.ceil(ingredient_data['qty']) if ingredient_data['qty'] > 0 else 0
             ingredient_data['cost'] = round(ingredient_data['cost'], 2)
 
             shopping_list_doc.append("shopping_details", {
@@ -456,6 +460,7 @@ def _generate_shopping_list(meal_plan_doc):
         frappe.log_error(error_msg)
         frappe.msgprint(error_msg)
         return None
+    
     
 @frappe.whitelist()
 def get_meal_plan_status(monday):
