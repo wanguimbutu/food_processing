@@ -20,10 +20,8 @@ def save_meal_assignment(assignments_json):
 
       #  frappe.msgprint(f"Processing: {meal_name} for {customer} on {date}")
 
-        small_appetite = data.get("small_appetite", 0)
-        normal_appetite = data.get("normal_appetite", 0)
-        large_appetite = data.get("large_appetite", 0)
         total_individuals = data.get("total_individuals", 0)
+
 
         monday = date - timedelta(days=date.weekday())
         sunday = monday + timedelta(days=6)
@@ -58,11 +56,8 @@ def save_meal_assignment(assignments_json):
             meal_plan_doc.selected_projects = ""
             #frappe.msgprint("Created new Meal Plan")
 
-        frappe.logger().info(f"Appetite values: Small={small_appetite}, Normal={normal_appetite}, Large={large_appetite}")
+        frappe.logger().info(f"Appetite values: Total Individuals: {total_individuals}, Meal ID: {meal_id}, Meal Name: {meal_name}, Customer: {customer}")
 
-        meal_plan_doc.small_appetite = small_appetite
-        meal_plan_doc.normal_appetite = normal_appetite
-        meal_plan_doc.large_appetite = large_appetite
         meal_plan_doc.total_individuals = total_individuals
 
         existing = [

@@ -160,9 +160,6 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
         
     function saveMealAssignment(assignments) {
     
-    const small_appetite = parseInt($('#servings-small').val()) || 0;
-    const normal_appetite = parseInt($('#servings-normal').val()) || 0;
-    const large_appetite = parseInt($('#servings-large').val()) || 0;
     const total_individuals = parseInt($('#total-people').text()) || 0;
 
     const assignmentData = {
@@ -171,9 +168,6 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
         meal_id: assignments.meal_id,
         meal_name: assignments.meal_name,
         customer: assignments.customer,
-        small_appetite: small_appetite,
-        normal_appetite: normal_appetite,
-        large_appetite: large_appetite,
         total_individuals: total_individuals
     };
 
