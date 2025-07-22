@@ -1,6 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
+ "autoname": "field:meal_id",
  "creation": "2025-03-10 12:05:01.124916",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -21,7 +22,8 @@
    "fieldname": "meal_id",
    "fieldtype": "Data",
    "hidden": 1,
-   "label": "Meal ID"
+   "label": "Meal ID",
+   "unique": 1
   },
   {
    "fieldname": "meal_name",
@@ -69,10 +71,11 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-05-05 12:27:21.065252",
+ "modified": "2025-07-22 10:41:35.055933",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Meals",
+ "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
   {
