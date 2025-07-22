@@ -58,7 +58,9 @@ def save_meal_assignment(assignments_json):
 
         frappe.logger().info(f"Appetite values: Total Individuals: {total_individuals}, Meal ID: {meal_id}, Meal Name: {meal_name}, Customer: {customer}")
 
-        meal_plan_doc.total_individuals = total_individuals
+        if total_individuals > 0:
+            meal_plan_doc.total_individuals = total_individuals
+
 
         existing = [
             e for e in meal_plan_doc.meal_plan_entry
