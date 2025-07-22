@@ -160,48 +160,43 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
         
     function saveMealAssignment(assignments) {
     
-    const small_appetite = parseInt($('#servings-small').val()) || 0;
-    const normal_appetite = parseInt($('#servings-normal').val()) || 0;
-    const large_appetite = parseInt($('#servings-large').val()) || 0;
-    const total_individuals = parseInt($('#total-people').text()) || 0;
+        const total_individuals = parseInt($('#total-people').text()) || 0;
 
-    const assignmentData = {
-        date: assignments.date,
-        meal_type: assignments.meal_type,
-        meal_id: assignments.meal_id,
-        meal_name: assignments.meal_name,
-        customer: assignments.customer,
-        small_appetite: small_appetite,
-        normal_appetite: normal_appetite,
-        large_appetite: large_appetite,
-        total_individuals: total_individuals
-    };
+        const assignmentData = {
+            date: assignments.date,
+            meal_type: assignments.meal_type,
+            meal_id: assignments.meal_id,
+            meal_name: assignments.meal_name,
+            customer: assignments.customer,
+            total_individuals: total_individuals
+        };
 
-    console.log("Sending assignment data:", assignmentData); // Debug log
-    //frappe.msgprint(`Attempting to save: ${assignmentData.meal_name} for ${assignmentData.customer}`); // Debug message
-    
-    frappe.call({
-        method: "food_processing.food_processing.page.meal_assignment.meal_assignment.save_meal_assignment",
-        args: {
-            assignments_json: JSON.stringify(assignmentData)
-        },
-        callback: function(r) {
-            console.log("Save response:", r); // Debug log
-            if (r.message === "OK") {
-                //frappe.msgprint("Meal assignment saved successfully!");
-                // Refresh the display to show the saved assignment
-                fetchAndRenderMealAssignments(currentMonday);
-            } else {
-                console.error("Server returned:", r.message);
-                frappe.msgprint("Save failed - Server response: " + (r.message || "Unknown error"));
+
+        console.log("Sending assignment data:", assignmentData); // Debug log
+        //frappe.msgprint(`Attempting to save: ${assignmentData.meal_name} for ${assignmentData.customer}`); // Debug message
+        
+        frappe.call({
+            method: "food_processing.food_processing.page.meal_assignment.meal_assignment.save_meal_assignment",
+            args: {
+                assignments_json: JSON.stringify(assignmentData)
+            },
+            callback: function(r) {
+                console.log("Save response:", r); // Debug log
+                if (r.message === "OK") {
+                    //frappe.msgprint("Meal assignment saved successfully!");
+                    // Refresh the display to show the saved assignment
+                    fetchAndRenderMealAssignments(currentMonday);
+                } else {
+                    console.error("Server returned:", r.message);
+                    frappe.msgprint("Save failed - Server response: " + (r.message || "Unknown error"));
+                }
+            },
+            error: function(err) {
+                console.error("Error saving meal assignment:", err);
+                frappe.msgprint("Network error while saving: " + (err.message || "Connection failed"));
             }
-        },
-        error: function(err) {
-            console.error("Error saving meal assignment:", err);
-            frappe.msgprint("Network error while saving: " + (err.message || "Connection failed"));
-        }
-    });
-}
+        });
+    }
     
     function formatDate(date) {
         return frappe.datetime.obj_to_str(date);
@@ -433,7 +428,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                                     $(this).removeClass('ring ring-blue-400');
                                     const mealName = e.originalEvent.dataTransfer.getData('text/plain');
                                     const meal = allMeals.find(m => m.meal_name === mealName);
-                                    const meal_id = meal?.name || "";
+                                    const meal_id = meal?.meal_id || "";
                                     const cellDate = key;
                                     const mealType = meals[j];
                                     const currentCustomer = customer;
@@ -468,7 +463,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                                     if (!selectedMeal) return;
 
                                     const meal = allMeals.find(m => m.meal_name === selectedMeal);
-                                    const meal_id = meal?.name || "";
+                                    const meal_id = meal?.meal_id || "";
                                     const cellDate = key;
                                     const mealType = meals[j];
                                     const currentCustomer = customer;
