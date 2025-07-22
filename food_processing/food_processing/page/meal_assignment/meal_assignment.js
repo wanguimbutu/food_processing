@@ -179,20 +179,15 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
     }
         
     function saveMealAssignment(assignments) {
-    
     const total_individuals = parseInt($('#total-people').text()) || 0;
 
+    // Merge the assignments object with total_individuals, preserving all fields
     const assignmentData = {
-        date: assignments.date,
-        meal_type: assignments.meal_type,
-        meal_id: assignments.meal_id,
-        meal_name: assignments.meal_name,
-        customer: assignments.customer,
-        total_individuals: total_individuals
+        ...assignments,  // Spread all the passed properties
+        total_individuals: total_individuals  // Ensure total_individuals is always set from the UI
     };
 
     console.log("Sending assignment data:", assignmentData); // Debug log
-    //frappe.msgprint(`Attempting to save: ${assignmentData.meal_name} for ${assignmentData.customer}`); // Debug message
     
     frappe.call({
         method: "food_processing.food_processing.page.meal_assignment.meal_assignment.save_meal_assignment",
@@ -202,7 +197,6 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
         callback: function(r) {
             console.log("Save response:", r); // Debug log
             if (r.message === "OK") {
-                //frappe.msgprint("Meal assignment saved successfully!");
                 // Refresh the display to show the saved assignment
                 fetchAndRenderMealAssignments(currentMonday);
             } else {
@@ -216,7 +210,6 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
         }
     });
 }
-    
     function formatDate(date) {
         return frappe.datetime.obj_to_str(date);
     }

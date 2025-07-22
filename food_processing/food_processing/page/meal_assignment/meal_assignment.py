@@ -344,6 +344,10 @@ def _generate_shopping_list(meal_plan_doc):
         frappe.msgprint(f"Generating shopping list for: {meal_plan_doc.name}")
         frappe.logger().info(f"[START] Shopping list creation for {meal_plan_doc.name}")
 
+        # GET THE TOTAL INDIVIDUALS FROM THE MEAL PLAN - THIS IS THE KEY FIX!
+        total_individuals = meal_plan_doc.total_individuals or 1  # Default to 1 if not set
+        frappe.logger().info(f"Total individuals for shopping calculations: {total_individuals}")
+
         existing_list = frappe.get_all("Shopping List", filters={
             "meal_plan": meal_plan_doc.name
         }, fields=["name"])
@@ -398,8 +402,11 @@ def _generate_shopping_list(meal_plan_doc):
                                     if not item_code:
                                         continue
 
-                                    total_qty = qty * frequency
-                                    total_cost = cost * frequency
+                                    # MULTIPLY BY BOTH FREQUENCY AND TOTAL INDIVIDUALS!
+                                    total_qty = qty * frequency * total_individuals
+                                    total_cost = cost * frequency * total_individuals
+
+                                    frappe.logger().info(f"Calculating for {item_code}: base_qty={qty} * frequency={frequency} * total_individuals={total_individuals} = {total_qty}")
 
                                     # Clamp and round total_cost
                                     if total_cost > MAX_COST:
@@ -438,8 +445,8 @@ def _generate_shopping_list(meal_plan_doc):
             frappe.logger().info(f"Added ingredient to list: {ingredient_data}")
 
         shopping_list_doc.save()
-        frappe.msgprint(f"Shopping List created/updated: {shopping_list_doc.name}")
-        frappe.logger().info(f"[DONE] Shopping List: {shopping_list_doc.name}")
+        frappe.msgprint(f"Shopping List created/updated: {shopping_list_doc.name} for {total_individuals} people")
+        frappe.logger().info(f"[DONE] Shopping List: {shopping_list_doc.name} for {total_individuals} people")
 
         return shopping_list_doc.name
 
@@ -449,7 +456,7 @@ def _generate_shopping_list(meal_plan_doc):
         frappe.log_error(error_msg)
         frappe.msgprint(error_msg)
         return None
-
+    
 @frappe.whitelist()
 def get_meal_plan_status(monday):
     """Get the status of meal plan for a given week"""
