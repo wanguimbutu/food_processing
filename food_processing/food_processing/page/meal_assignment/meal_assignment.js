@@ -428,7 +428,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                                     $(this).removeClass('ring ring-blue-400');
                                     const mealName = e.originalEvent.dataTransfer.getData('text/plain');
                                     const meal = allMeals.find(m => m.meal_name === mealName);
-                                    const meal_id = meal?.meal_id || "";
+                                    const meal_id = meal?.name || "";
                                     const cellDate = key;
                                     const mealType = meals[j];
                                     const currentCustomer = customer;
@@ -463,7 +463,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                                     if (!selectedMeal) return;
 
                                     const meal = allMeals.find(m => m.meal_name === selectedMeal);
-                                    const meal_id = meal?.meal_id || "";
+                                    const meal_id = meal?.name || "";
                                     const cellDate = key;
                                     const mealType = meals[j];
                                     const currentCustomer = customer;
