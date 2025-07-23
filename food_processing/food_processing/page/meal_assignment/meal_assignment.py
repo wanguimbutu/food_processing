@@ -121,7 +121,8 @@ def get_projects_for_week(monday):
         tasks = frappe.get_all("Task", filters={
             "subject": "Meal Plan Allocation",
             "exp_start_date": ["<=", sunday],
-            "exp_end_date": [">=", monday]
+            "exp_end_date": [">=", monday],
+            "custom_is_meals_at_camp": 1
         }, fields=["project"])
         
         projects = [task.project for task in tasks if task.project]
