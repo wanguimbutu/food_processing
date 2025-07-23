@@ -346,8 +346,7 @@ def _generate_shopping_list(meal_plan_doc):
         frappe.msgprint(f"Generating shopping list for: {meal_plan_doc.name}")
         frappe.logger().info(f"[START] Shopping list creation for {meal_plan_doc.name}")
 
-        # GET THE TOTAL INDIVIDUALS FROM THE MEAL PLAN - THIS IS THE KEY FIX!
-        total_individuals = meal_plan_doc.total_individuals or 1  # Default to 1 if not set
+        total_individuals = meal_plan_doc.total_individuals or 1  
         frappe.logger().info(f"Total individuals for shopping calculations: {total_individuals}")
 
         existing_list = frappe.get_all("Shopping List", filters={
@@ -404,7 +403,6 @@ def _generate_shopping_list(meal_plan_doc):
                                     if not item_code:
                                         continue
 
-                                    # MULTIPLY BY BOTH FREQUENCY AND TOTAL INDIVIDUALS!
                                     total_qty = qty * frequency * total_individuals
                                     total_cost = cost * frequency * total_individuals
 
@@ -420,14 +418,21 @@ def _generate_shopping_list(meal_plan_doc):
 
                                     total_cost = round(total_cost, 2)
 
+                            
+                                    uom = ingredient.get('uom', '') or ''
+
                                     if item_code in ingredient_totals:
                                         ingredient_totals[item_code]['qty'] += total_qty
                                         ingredient_totals[item_code]['cost'] += total_cost
+                                        
+                                        if not ingredient_totals[item_code].get('uom'):
+                                            ingredient_totals[item_code]['uom'] = uom
                                     else:
                                         ingredient_totals[item_code] = {
                                             'item_code': item_code,
                                             'qty': total_qty,
-                                            'cost': total_cost
+                                            'cost': total_cost,
+                                            'uom': uom
                                         }
 
                         except Exception as recipe_error:
@@ -437,14 +442,14 @@ def _generate_shopping_list(meal_plan_doc):
                 frappe.logger().error(f"Error processing meal {meal_id}: {str(meal_error)}")
 
         for ingredient_data in ingredient_totals.values():
-            # Apply ceiling rounding to final quantities and round cost to 2 decimal places
             ingredient_data['qty'] = math.ceil(ingredient_data['qty']) if ingredient_data['qty'] > 0 else 0
             ingredient_data['cost'] = round(ingredient_data['cost'], 2)
 
             shopping_list_doc.append("shopping_details", {
                 "item_code": ingredient_data['item_code'],
                 "qty": ingredient_data['qty'],
-                "cost": ingredient_data['cost']
+                "cost": ingredient_data['cost'],
+                "uom": ingredient_data.get('uom', '')  
             })
             frappe.logger().info(f"Added ingredient to list: {ingredient_data}")
 
@@ -459,8 +464,7 @@ def _generate_shopping_list(meal_plan_doc):
         frappe.logger().error(error_msg)
         frappe.log_error(error_msg)
         frappe.msgprint(error_msg)
-        return None
-    
+        return None 
     
 @frappe.whitelist()
 def get_meal_plan_status(monday):
