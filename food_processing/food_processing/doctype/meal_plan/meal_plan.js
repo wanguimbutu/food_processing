@@ -500,7 +500,7 @@ function setup_meal_drag_and_drop(frm) {
                     </div>
                 `);
 
-                meal_container.on("click", ".remove-meal", function () {
+                 $(document).off("click", ".remove-meal").on("click", ".remove-meal", function () {
                     const mealItem = $(this).closest(".meal-item");
                     const meal_id = mealItem.attr("data-meal-id");
                     const selected_date = mealItem.closest("tr").attr("data-date");
@@ -509,7 +509,6 @@ function setup_meal_drag_and_drop(frm) {
                     mealItem.remove();
                     remove_meal_from_plan(frm, meal_id, selected_date, meal_type);
                 });
-                
 
                 $(event.target).append(mealItem);
                 add_meal_to_plan(frm, meal_id, meal_name, selected_date, meal_type);
@@ -603,13 +602,19 @@ function prompt_for_meal_details(frm, meal) {
 function load_existing_meals(frm) {
     if (!frm.doc.meal_plan_entry || frm.doc.meal_plan_entry.length === 0) return;
 
-
     $("td[data-meal-type]").empty();
 
     frm.doc.meal_plan_entry.forEach(entry => {
         let cell = $(`tr[data-date="${entry.date}"] td[data-meal-type="${entry.meal_type}"]`);
         if (cell.length) {
-            cell.append(`<div class="meal-item" style="padding:5px; background:#f2f2f2; margin:3px;">${entry.meal_name}</div>`);
+            // FIXED: Include the remove button for existing meals too
+            let mealItem = $(`
+                <div class="meal-item" data-meal-id="${entry.meal_id}" style="padding:5px; background:#f2f2f2; margin:3px; display:flex; justify-content:space-between;">
+                    <span>${entry.meal_name}</span>
+                    <button class="remove-meal" style="background:red; color:white; border:none; padding:2px 5px;">X</button>
+                </div>
+            `);
+            cell.append(mealItem);
         }
     });
 }
