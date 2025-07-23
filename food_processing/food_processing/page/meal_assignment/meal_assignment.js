@@ -128,7 +128,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
     
                 entries.forEach(entry => {
                     // Find the cell based on date and meal_type
-                    const selector = `[data-date="${entry.date}"][data-meal-type="${entry.meal_type}"][data-customer="${entry.customer}"]`;
+                    const selector = `[data-date="${entry.date}"][data-meal-type="${entry.meal_type}"][data-customer="${entry.customer}"][data-project-key="${entry.project_key}"]`;
 
                     const cell = $(selector);
     
@@ -143,7 +143,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                         // Add click handler for remove button
                         cell.find('.remove-meal').on('click', function(e) {
                             e.stopPropagation();
-                            removeMealAssignment(entry.date, entry.meal_type, entry.customer);
+                            removeMealAssignment(entry.date, entry.meal_type, entry.customer, entry.project_key);
                         });
                     }
                 });
@@ -155,17 +155,18 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
     }
     
     // Function to remove meal assignment
-    function removeMealAssignment(date, mealType, customer) {
+    function removeMealAssignment(date, mealType, customer,projectKey) {
         frappe.call({
             method: "food_processing.food_processing.page.meal_assignment.meal_assignment.remove_meal_assignment",
             args: {
                 date: date,
                 meal_type: mealType,
-                customer: customer
+                customer: customer,
+                project_key:projectKey
             },
             callback: function(r) {
                 if (r.message === "OK") {
-                    const selector = `[data-date="${date}"][data-meal-type="${mealType}"][data-customer="${customer}"]`;
+                    const selector = `[data-date="${date}"][data-meal-type="${mealType}"][data-customer="${customer}"] [data-project-key="${projectKey}`;
                     $(selector).empty();
                     frappe.msgprint("Meal assignment removed");
                     fetchAndRenderMealAssignments(currentMonday);
@@ -420,6 +421,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                             cell.attr('data-date', key);
                             cell.attr('data-meal-type', mealType);
                             cell.attr('data-customer', customer);
+                            cell.attr('data-project-key', taskKey); 
 
                             if (highlight || isActive) {
                                 cell.css('background-color', color);
@@ -464,6 +466,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                                         meal_id: meal_id,
                                         meal_name: mealName,
                                         customer: currentCustomer,
+                                        project_key:taskKey,
                                         small_appetite: parseInt($("#servings-small").val()) || 0,
                                         normal_appetite: parseInt($("#servings-normal").val()) || 0,
                                         large_appetite: parseInt($("#servings-large").val()) || 0,
@@ -490,7 +493,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                                     // Add remove click handler
                                     $(this).find('.remove-meal').on('click', function(e) {
                                         e.stopPropagation();
-                                        removeMealAssignment(cellDate, mealType, currentCustomer);
+                                        removeMealAssignment(cellDate, mealType, currentCustomer,taskKey);
                                     });
 
                                     saveMealAssignment({
