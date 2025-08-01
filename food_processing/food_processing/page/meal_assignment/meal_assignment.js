@@ -115,44 +115,118 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
     
     // Fixed function to fetch and render meal assignments
     function fetchAndRenderMealAssignments(monday) {
-        const visibleDates = getVisibleDates(monday);
+    const visibleDates = getVisibleDates(monday);
     
-        frappe.call({
-            method: "food_processing.food_processing.page.meal_assignment.meal_assignment.get_meal_entries_for_dates",
-            args: {
-                dates_json: JSON.stringify(visibleDates)
-            },
-            callback: function (r) {
-                const entries = r.message || [];
-                console.log("Fetched meal entries:", entries); // Debug log
-    
-                entries.forEach(entry => {
-                    // Find the cell based on date and meal_type
-                    const selector = `[data-date="${entry.date}"][data-meal-type="${entry.meal_type}"][data-customer="${entry.customer}"][data-project-key="${entry.project_key}"]`;
+    console.log("=== DEBUGGING MEAL ASSIGNMENTS ===");
+    console.log("Fetching assignments for dates:", visibleDates);
 
-                    const cell = $(selector);
-    
-                    if (cell.length > 0) {
-                        cell.html(`
-                            <div class="flex items-center justify-between px-1">
-                                <span class="truncate" title="${entry.meal_name}">${entry.meal_name}</span>
-                                <button class="text-red-500 text-xs remove-meal">&times;</button>
-                            </div>
-                        `);
-                        
-                        // Add click handler for remove button
-                        cell.find('.remove-meal').on('click', function(e) {
-                            e.stopPropagation();
-                            removeMealAssignment(entry.date, entry.meal_type, entry.customer, entry.project_key);
+    frappe.call({
+        method: "food_processing.food_processing.page.meal_assignment.meal_assignment.get_meal_entries_for_dates",
+        args: {
+            dates_json: JSON.stringify(visibleDates)
+        },
+        callback: function (r) {
+            const entries = r.message || [];
+            console.log("✓ Fetched meal entries:", entries);
+            console.log("✓ Number of entries:", entries.length);
+
+            if (entries.length === 0) {
+                console.log(" No meal entries to display");
+                return;
+            }
+
+            // Debug: Check what cells exist before trying to match
+            console.log("=== CHECKING EXISTING CELLS ===");
+            const allCells = $('[data-date][data-meal-type][data-customer][data-project-key]');
+            console.log("✓ Total cells with all data attributes:", allCells.length);
+            
+            // Log a few sample cells to see their attributes
+            allCells.slice(0, 3).each(function(index) {
+                console.log(`Sample cell ${index + 1}:`, {
+                    date: $(this).attr('data-date'),
+                    mealType: $(this).attr('data-meal-type'),
+                    customer: $(this).attr('data-customer'),
+                    projectKey: $(this).attr('data-project-key')
+                });
+            });
+
+            entries.forEach((entry, index) => {
+                console.log(`\n=== PROCESSING ENTRY ${index + 1} ===`);
+                console.log("Entry data:", entry);
+                
+                // Build the selector step by step for better debugging
+                const selector = `[data-date="${entry.date}"][data-meal-type="${entry.meal_type}"][data-customer="${entry.customer}"][data-project-key="${entry.project_key}"]`;
+                console.log("Looking for selector:", selector);
+
+                const cell = $(selector);
+                console.log("Found cells with this selector:", cell.length);
+
+                if (cell.length === 0) {
+                    console.log("NO MATCHING CELL FOUND!");
+                    
+                    // Debug: Try to find cells with partial matches
+                    console.log("--- DEBUGGING PARTIAL MATCHES ---");
+                    
+                    // Check date match
+                    const dateMatches = $(`[data-date="${entry.date}"]`);
+                    console.log(`Cells with date "${entry.date}":`, dateMatches.length);
+                    
+                    // Check meal type match
+                    const mealTypeMatches = $(`[data-meal-type="${entry.meal_type}"]`);
+                    console.log(`Cells with meal type "${entry.meal_type}":`, mealTypeMatches.length);
+                    
+                    // Check customer match
+                    const customerMatches = $(`[data-customer="${entry.customer}"]`);
+                    console.log(`Cells with customer "${entry.customer}":`, customerMatches.length);
+                    
+                    // Check project key match
+                    const projectMatches = $(`[data-project-key="${entry.project_key}"]`);
+                    console.log(`Cells with project key "${entry.project_key}":`, projectMatches.length);
+                    
+                    // Try date + meal type combination
+                    const dateAndMeal = $(`[data-date="${entry.date}"][data-meal-type="${entry.meal_type}"]`);
+                    console.log(`Cells with date + meal type:`, dateAndMeal.length);
+                    
+                    if (dateAndMeal.length > 0) {
+                        console.log("Available date+meal combinations:");
+                        dateAndMeal.each(function() {
+                            console.log({
+                                date: $(this).attr('data-date'),
+                                mealType: $(this).attr('data-meal-type'),
+                                customer: $(this).attr('data-customer'),
+                                projectKey: $(this).attr('data-project-key')
+                            });
                         });
                     }
-                });
-            },
-            error: function(err) {
-                console.error("Error fetching meal assignments:", err);
-            }
-        });
-    }
+                    
+                } else {
+                    console.log("✓ FOUND MATCHING CELL! Updating content...");
+                    
+                    cell.html(`
+                        <div class="flex items-center justify-between px-1">
+                            <span class="truncate" title="${entry.meal_name}">${entry.meal_name}</span>
+                            <button class="text-red-500 text-xs remove-meal">&times;</button>
+                        </div>
+                    `);
+                    
+                    // Add click handler for remove button
+                    cell.find('.remove-meal').on('click', function(e) {
+                        e.stopPropagation();
+                        removeMealAssignment(entry.date, entry.meal_type, entry.customer, entry.project_key);
+                    });
+                    
+                    console.log("✓ Cell updated successfully");
+                }
+            });
+            
+            console.log("=== END DEBUGGING ===\n");
+        },
+        error: function(err) {
+            console.error("Error fetching meal assignments:", err);
+        }
+    });
+}
+
     
     // Function to remove meal assignment
     function removeMealAssignment(date, mealType, customer,projectKey) {
