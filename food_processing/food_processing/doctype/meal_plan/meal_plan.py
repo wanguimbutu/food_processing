@@ -271,33 +271,38 @@ def populate_daily_meal_costs(plan_doc):
 def populate_shopping_list_from_meal_plan(plan_doc):
     """
     Populates the Shopping List from the meals in the given Meal Plan document.
-    Quantities are rounded up to the next whole integer for easier purchasing.
+    Handles cost calculations based on packet sizes and per-person usage.
     """
     total_individuals = plan_doc.total_individuals or 1
-    total_servings = plan_doc.total_servings or 1
+    total_servings = plan_doc.total_servings or 1  # Not used in this logic
 
-    # Step 1: Prepare meal data for reusing fetch logic
+    # Step 1: Prepare meal data
     meal_data = []
     for entry in plan_doc.meal_plan_entry:
         meal_data.append({
             "meal_id": entry.meal_id,
-            "selected_percentage": entry.selected_percentage or 0  # Only used for LSG
+            "selected_percentage": entry.selected_percentage or 0
         })
 
-    # Step 2: Reuse logic from fetch_ingredients
+    # Step 2: Fetch ingredients
     ingredient_list = fetch_ingredients(
         meal_data=json.dumps(meal_data),
         total_individuals=total_individuals,
         total_servings=total_servings
     )
 
-    # Step 3: Write to Shopping List table
+    # Step 3: Populate shopping list
     for ingredient in ingredient_list:
-        # Round quantity up to next whole integer for easier purchasing
-        raw_qty = float(ingredient["qty"] or 0)
-        rounded_qty = math.ceil(raw_qty)
+        per_person_qty = float(ingredient.get("qty") or 0)
+        packet_cost = float(ingredient.get("cost") or 0)
 
-        
+        # Total qty needed for all individuals
+        total_qty = per_person_qty * total_individuals
+        rounded_qty = math.ceil(total_qty)
+
+        # Total cost = number of full packets * cost per packet
+        adjusted_cost = rounded_qty * packet_cost
+
         existing = frappe.get_all(
             "Shopping List",
             filters={
@@ -308,23 +313,21 @@ def populate_shopping_list_from_meal_plan(plan_doc):
         )
 
         if existing:
-            # Update quantity and cost
             shopping_doc = frappe.get_doc("Shopping List", existing[0].name)
             shopping_doc.qty = rounded_qty
-            shopping_doc.cost = ingredient["cost"]
+            shopping_doc.cost = adjusted_cost
             shopping_doc.uom = ingredient["unit_of_measure"]
             shopping_doc.save(ignore_permissions=True)
-            frappe.logger().info(f"Updated Shopping List item {ingredient['ingredient']} with rounded up qty {rounded_qty}")
+            frappe.logger().info(f"Updated Shopping List item {ingredient['ingredient']} with qty {rounded_qty} and cost {adjusted_cost}")
         else:
-            # Insert new entry
             frappe.get_doc({
                 "doctype": "Shopping List",
                 "item_code": ingredient["ingredient"],
                 "qty": rounded_qty,
                 "uom": ingredient["unit_of_measure"],
-                "cost": ingredient["cost"],
+                "cost": adjusted_cost,
                 "meal_plan_link": plan_doc.name
             }).insert(ignore_permissions=True)
-            frappe.logger().info(f"Created Shopping List item {ingredient['ingredient']} with rounded up qty {rounded_qty}")
+            frappe.logger().info(f"Created Shopping List item {ingredient['ingredient']} with qty {rounded_qty} and cost {adjusted_cost}")
 
     frappe.logger().info(f"Shopping list populated for meal plan {plan_doc.name}.")

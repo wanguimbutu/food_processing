@@ -378,36 +378,35 @@ def _generate_shopping_list(meal_plan_doc):
                                 for ingredient in recipe_doc.ingredients:
                                     item_code = ingredient.get('ingredient')
                                     try:
-                                        qty = float(ingredient.get('qty', 0)) or 0
-                                        cost = float(ingredient.get('cost', 0)) or 0
+                                        per_person_qty = float(ingredient.get('qty', 0)) or 0
+                                        packet_cost = float(ingredient.get('cost', 0)) or 0
                                     except Exception as e:
                                         frappe.logger().warning(f"Invalid qty or cost for {item_code}: {e}")
-                                        qty = 0
-                                        cost = 0
+                                        per_person_qty = 0
+                                        packet_cost = 0
 
                                     if not item_code:
                                         continue
 
-                                    total_qty = qty * frequency * total_individuals
-                                    total_cost = cost * frequency * total_individuals
+                                    # Total quantity needed (unrounded): per person qty × individuals × frequency
+                                    total_qty = per_person_qty * frequency * total_individuals
 
-                                    frappe.logger().info(f"Calculating for {item_code}: base_qty={qty} * frequency={frequency} * total_individuals={total_individuals} = {total_qty}")
+                                    # Round up total quantity for whole packets
+                                    rounded_qty = math.ceil(total_qty) if total_qty > 0 else 0
 
-                                    # Round up quantity using math.ceil (6.8 -> 7, 1.1 -> 2)
-                                    total_qty = math.ceil(total_qty) if total_qty > 0 else 0
+                                    # Total cost = number of packets * cost per packet
+                                    total_cost = rounded_qty * packet_cost
 
-                                    # Clamp and round total_cost to 2 decimal places
                                     if total_cost > MAX_COST:
                                         frappe.logger().warning(f"Cost for {item_code} capped from {total_cost} to {MAX_COST}")
                                         total_cost = MAX_COST
 
                                     total_cost = round(total_cost, 2)
 
-                            
                                     uom = ingredient.get('uom', '') or ''
 
                                     if item_code in ingredient_totals:
-                                        ingredient_totals[item_code]['qty'] += total_qty
+                                        ingredient_totals[item_code]['qty'] += rounded_qty
                                         ingredient_totals[item_code]['cost'] += total_cost
                                         
                                         if not ingredient_totals[item_code].get('uom'):
@@ -415,10 +414,12 @@ def _generate_shopping_list(meal_plan_doc):
                                     else:
                                         ingredient_totals[item_code] = {
                                             'item_code': item_code,
-                                            'qty': total_qty,
+                                            'qty': rounded_qty,
                                             'cost': total_cost,
                                             'uom': uom
                                         }
+
+                                    frappe.logger().info(f"{item_code}: {rounded_qty} units × {packet_cost} = {total_cost}")
 
                         except Exception as recipe_error:
                             frappe.logger().error(f"Error processing recipe {recipe_name}: {str(recipe_error)}")
@@ -449,8 +450,8 @@ def _generate_shopping_list(meal_plan_doc):
         frappe.logger().error(error_msg)
         frappe.log_error(error_msg)
         frappe.msgprint(error_msg)
-        return None 
-    
+        return None
+
 @frappe.whitelist()
 def get_meal_plan_status(monday):
     """Get the status of meal plan for a given week"""
