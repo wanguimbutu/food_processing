@@ -28,78 +28,78 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
     }
 
     function submitMealPlanForWeek(mondayDate) {
-    const mondayStr = frappe.datetime.obj_to_str(mondayDate);  // Use system format (YYYY-MM-DD)
-    const totalIndividuals = parseInt($('#total-people').text()) || 0;
+        const mondayStr = frappe.datetime.obj_to_str(mondayDate);  // Use system format (YYYY-MM-DD)
+        const totalIndividuals = parseInt($('#total-people').text()) || 0;
 
-    console.log("Saving meal plan summary for date:", mondayStr);
+        console.log("Saving meal plan summary for date:", mondayStr);
 
-    frappe.call({
-        method: 'food_processing.food_processing.page.meal_assignment.meal_assignment.save_meal_plan_summary',
-        args: {
-            monday: mondayStr,
-            total_individuals: totalIndividuals
-        },
-        callback: function(res) {
-            if (res.message === "OK") {
-                console.log("Summary saved. Proceeding to submit Meal Plan...");
+        frappe.call({
+            method: 'food_processing.food_processing.page.meal_assignment.meal_assignment.save_meal_plan_summary',
+            args: {
+                monday: mondayStr,
+                total_individuals: totalIndividuals
+            },
+            callback: function(res) {
+                if (res.message === "OK") {
+                    console.log("Summary saved. Proceeding to submit Meal Plan...");
 
-                frappe.call({
-                    method: 'food_processing.food_processing.page.meal_assignment.meal_assignment.submit_meal_plan',
-                    args: {
-                        monday: mondayStr
-                    },
-                    callback: function(r) {
-                        console.log("Response from submit_meal_plan:", r);
+                    frappe.call({
+                        method: 'food_processing.food_processing.page.meal_assignment.meal_assignment.submit_meal_plans_for_week',
+                        args: {
+                            monday: mondayStr
+                        },
+                        callback: function(r) {
+                            console.log("Response from submit_meal_plan:", r);
 
-                        if (!r || !r.message) {
-                            frappe.msgprint(__('No response from server'));
-                            return;
-                        }
+                            if (!r || !r.message) {
+                                frappe.msgprint(__('No response from server'));
+                                return;
+                            }
 
-                        if (r.message === 'submitted') {
-                            frappe.msgprint(__('Meal Plan submitted successfully'));
+                            if (r.message === 'submitted') {
+                                frappe.msgprint(__('Meal Plan submitted successfully'));
 
-                            // Call create_shopping_list
-                            console.log("Calling create_shopping_list for:", mondayStr);
-                            frappe.call({
-                                method: 'food_processing.food_processing.page.meal_assignment.meal_assignment.create_shopping_list',
-                                args: {
-                                    monday: mondayStr
-                                },
-                                callback: function(resp) {
-                                    console.log("Response from create_shopping_list:", resp);
-                                    if (resp.message === 'created') {
-                                        frappe.msgprint(__('Shopping List created successfully'));
-                                    } else {
-                                        frappe.msgprint(__('Error creating Shopping List'));
+                                // Call create_shopping_list
+                                console.log("Calling create_shopping_list for:", mondayStr);
+                                frappe.call({
+                                    method: 'food_processing.food_processing.page.meal_assignment.meal_assignment.create_shopping_list',
+                                    args: {
+                                        monday: mondayStr
+                                    },
+                                    callback: function(resp) {
+                                        console.log("Response from create_shopping_list:", resp);
+                                        if (resp.message === 'created') {
+                                            frappe.msgprint(__('Shopping List created successfully'));
+                                        } else {
+                                            frappe.msgprint(__('Error creating Shopping List'));
+                                        }
                                     }
-                                }
-                            });
+                                });
 
-                        } else if (r.message === 'not_found') {
-                            frappe.msgprint(__('No Meal Plan found for this week'));
-                        } else if (r.message === 'already_submitted') {
-                            frappe.msgprint(__('Meal Plan already submitted'));
-                        } else {
-                            frappe.msgprint(__('Error submitting Meal Plan'));
+                            } else if (r.message === 'not_found') {
+                                frappe.msgprint(__('No Meal Plan found for this week'));
+                            } else if (r.message === 'already_submitted') {
+                                frappe.msgprint(__('Meal Plan already submitted'));
+                            } else {
+                                frappe.msgprint(__('Error submitting Meal Plan'));
+                            }
+                        },
+                        error: function(err) {
+                            console.error("Error during frappe.call to submit_meal_plan:", err);
+                            frappe.msgprint(__('Server error submitting Meal Plan'));
                         }
-                    },
-                    error: function(err) {
-                        console.error("Error during frappe.call to submit_meal_plan:", err);
-                        frappe.msgprint(__('Server error submitting Meal Plan'));
-                    }
-                });
+                    });
 
-            } else {
-                frappe.msgprint(__('Could not update total individuals before submitting the Meal Plan'));
+                } else {
+                    frappe.msgprint(__('Could not update total individuals before submitting the Meal Plan'));
+                }
+            },
+            error: function(err) {
+                console.error("Error updating total individuals:", err);
+                frappe.msgprint(__('Failed to update total individuals before submit'));
             }
-        },
-        error: function(err) {
-            console.error("Error updating total individuals:", err);
-            frappe.msgprint(__('Failed to update total individuals before submit'));
-        }
-    });
-}
+        });
+    }
 
     
     // Fixed function to get visible dates for the current week
@@ -115,117 +115,117 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
     
     // Fixed function to fetch and render meal assignments
     function fetchAndRenderMealAssignments(monday) {
-    const visibleDates = getVisibleDates(monday);
-    
-    console.log("=== DEBUGGING MEAL ASSIGNMENTS ===");
-    console.log("Fetching assignments for dates:", visibleDates);
+        const visibleDates = getVisibleDates(monday);
+        
+        console.log("=== DEBUGGING MEAL ASSIGNMENTS ===");
+        console.log("Fetching assignments for dates:", visibleDates);
 
-    frappe.call({
-        method: "food_processing.food_processing.page.meal_assignment.meal_assignment.get_meal_entries_for_dates",
-        args: {
-            dates_json: JSON.stringify(visibleDates)
-        },
-        callback: function (r) {
-            const entries = r.message || [];
-            console.log("✓ Fetched meal entries:", entries);
-            console.log("✓ Number of entries:", entries.length);
+        frappe.call({
+            method: "food_processing.food_processing.page.meal_assignment.meal_assignment.get_meal_entries_for_dates",
+            args: {
+                dates_json: JSON.stringify(visibleDates)
+            },
+            callback: function (r) {
+                const entries = r.message || [];
+                console.log("✓ Fetched meal entries:", entries);
+                console.log("✓ Number of entries:", entries.length);
 
-            if (entries.length === 0) {
-                console.log(" No meal entries to display");
-                return;
-            }
-
-            // Debug: Check what cells exist before trying to match
-            console.log("=== CHECKING EXISTING CELLS ===");
-            const allCells = $('[data-date][data-meal-type][data-customer][data-project-key]');
-            console.log("✓ Total cells with all data attributes:", allCells.length);
-            
-            // Log a few sample cells to see their attributes
-            allCells.slice(0, 3).each(function(index) {
-                console.log(`Sample cell ${index + 1}:`, {
-                    date: $(this).attr('data-date'),
-                    mealType: $(this).attr('data-meal-type'),
-                    customer: $(this).attr('data-customer'),
-                    projectKey: $(this).attr('data-project-key')
-                });
-            });
-
-            entries.forEach((entry, index) => {
-                console.log(`\n=== PROCESSING ENTRY ${index + 1} ===`);
-                console.log("Entry data:", entry);
-                
-                // Build the selector step by step for better debugging
-                const selector = `[data-date="${entry.date}"][data-meal-type="${entry.meal_type}"][data-customer="${entry.customer}"][data-project-key="${entry.project_key}"]`;
-                console.log("Looking for selector:", selector);
-
-                const cell = $(selector);
-                console.log("Found cells with this selector:", cell.length);
-
-                if (cell.length === 0) {
-                    console.log("NO MATCHING CELL FOUND!");
-                    
-                    // Debug: Try to find cells with partial matches
-                    console.log("--- DEBUGGING PARTIAL MATCHES ---");
-                    
-                    // Check date match
-                    const dateMatches = $(`[data-date="${entry.date}"]`);
-                    console.log(`Cells with date "${entry.date}":`, dateMatches.length);
-                    
-                    // Check meal type match
-                    const mealTypeMatches = $(`[data-meal-type="${entry.meal_type}"]`);
-                    console.log(`Cells with meal type "${entry.meal_type}":`, mealTypeMatches.length);
-                    
-                    // Check customer match
-                    const customerMatches = $(`[data-customer="${entry.customer}"]`);
-                    console.log(`Cells with customer "${entry.customer}":`, customerMatches.length);
-                    
-                    // Check project key match
-                    const projectMatches = $(`[data-project-key="${entry.project_key}"]`);
-                    console.log(`Cells with project key "${entry.project_key}":`, projectMatches.length);
-                    
-                    // Try date + meal type combination
-                    const dateAndMeal = $(`[data-date="${entry.date}"][data-meal-type="${entry.meal_type}"]`);
-                    console.log(`Cells with date + meal type:`, dateAndMeal.length);
-                    
-                    if (dateAndMeal.length > 0) {
-                        console.log("Available date+meal combinations:");
-                        dateAndMeal.each(function() {
-                            console.log({
-                                date: $(this).attr('data-date'),
-                                mealType: $(this).attr('data-meal-type'),
-                                customer: $(this).attr('data-customer'),
-                                projectKey: $(this).attr('data-project-key')
-                            });
-                        });
-                    }
-                    
-                } else {
-                    console.log("✓ FOUND MATCHING CELL! Updating content...");
-                    
-                    cell.html(`
-                        <div class="flex items-center justify-between px-1">
-                            <span class="truncate" title="${entry.meal_name}">${entry.meal_name}</span>
-                            <button class="text-red-500 text-xs remove-meal">&times;</button>
-                        </div>
-                    `);
-                    
-                    // Add click handler for remove button
-                    cell.find('.remove-meal').on('click', function(e) {
-                        e.stopPropagation();
-                        removeMealAssignment(entry.date, entry.meal_type, entry.customer, entry.project_key);
-                    });
-                    
-                    console.log("✓ Cell updated successfully");
+                if (entries.length === 0) {
+                    console.log(" No meal entries to display");
+                    return;
                 }
-            });
-            
-            console.log("=== END DEBUGGING ===\n");
-        },
-        error: function(err) {
-            console.error("Error fetching meal assignments:", err);
-        }
-    });
-}
+
+                // Debug: Check what cells exist before trying to match
+                console.log("=== CHECKING EXISTING CELLS ===");
+                const allCells = $('[data-date][data-meal-type][data-customer][data-project-key]');
+                console.log("✓ Total cells with all data attributes:", allCells.length);
+                
+                // Log a few sample cells to see their attributes
+                allCells.slice(0, 3).each(function(index) {
+                    console.log(`Sample cell ${index + 1}:`, {
+                        date: $(this).attr('data-date'),
+                        mealType: $(this).attr('data-meal-type'),
+                        customer: $(this).attr('data-customer'),
+                        projectKey: $(this).attr('data-project-key')
+                    });
+                });
+
+                entries.forEach((entry, index) => {
+                    console.log(`\n=== PROCESSING ENTRY ${index + 1} ===`);
+                    console.log("Entry data:", entry);
+                    
+                    // Build the selector step by step for better debugging
+                    const selector = `[data-date="${entry.date}"][data-meal-type="${entry.meal_type}"][data-customer="${entry.customer}"][data-project-key="${entry.project_key}"]`;
+                    console.log("Looking for selector:", selector);
+
+                    const cell = $(selector);
+                    console.log("Found cells with this selector:", cell.length);
+
+                    if (cell.length === 0) {
+                        console.log("NO MATCHING CELL FOUND!");
+                        
+                        // Debug: Try to find cells with partial matches
+                        console.log("--- DEBUGGING PARTIAL MATCHES ---");
+                        
+                        // Check date match
+                        const dateMatches = $(`[data-date="${entry.date}"]`);
+                        console.log(`Cells with date "${entry.date}":`, dateMatches.length);
+                        
+                        // Check meal type match
+                        const mealTypeMatches = $(`[data-meal-type="${entry.meal_type}"]`);
+                        console.log(`Cells with meal type "${entry.meal_type}":`, mealTypeMatches.length);
+                        
+                        // Check customer match
+                        const customerMatches = $(`[data-customer="${entry.customer}"]`);
+                        console.log(`Cells with customer "${entry.customer}":`, customerMatches.length);
+                        
+                        // Check project key match
+                        const projectMatches = $(`[data-project-key="${entry.project_key}"]`);
+                        console.log(`Cells with project key "${entry.project_key}":`, projectMatches.length);
+                        
+                        // Try date + meal type combination
+                        const dateAndMeal = $(`[data-date="${entry.date}"][data-meal-type="${entry.meal_type}"]`);
+                        console.log(`Cells with date + meal type:`, dateAndMeal.length);
+                        
+                        if (dateAndMeal.length > 0) {
+                            console.log("Available date+meal combinations:");
+                            dateAndMeal.each(function() {
+                                console.log({
+                                    date: $(this).attr('data-date'),
+                                    mealType: $(this).attr('data-meal-type'),
+                                    customer: $(this).attr('data-customer'),
+                                    projectKey: $(this).attr('data-project-key')
+                                });
+                            });
+                        }
+                        
+                    } else {
+                        console.log("✓ FOUND MATCHING CELL! Updating content...");
+                        
+                        cell.html(`
+                            <div class="flex items-center justify-between px-1">
+                                <span class="truncate" title="${entry.meal_name}">${entry.meal_name}</span>
+                                <button class="text-red-500 text-xs remove-meal">&times;</button>
+                            </div>
+                        `);
+                        
+                        // Add click handler for remove button
+                        cell.find('.remove-meal').on('click', function(e) {
+                            e.stopPropagation();
+                            removeMealAssignment(entry.date, entry.meal_type, entry.customer, entry.project_key);
+                        });
+                        
+                        console.log("✓ Cell updated successfully");
+                    }
+                });
+                
+                console.log("=== END DEBUGGING ===\n");
+            },
+            error: function(err) {
+                console.error("Error fetching meal assignments:", err);
+            }
+        });
+    }
 
     
     // Function to remove meal assignment
@@ -255,11 +255,9 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
         
     function saveMealAssignment(assignments) {
     const total_individuals = parseInt($('#total-people').text()) || 0;
-
-    // Merge the assignments object with total_individuals, preserving all fields
     const assignmentData = {
-        ...assignments,  // Spread all the passed properties
-        total_individuals: total_individuals  // Ensure total_individuals is always set from the UI
+        ...assignments,
+        total_individuals: total_individuals
     };
 
     console.log("Sending assignment data:", assignmentData); // Debug log
