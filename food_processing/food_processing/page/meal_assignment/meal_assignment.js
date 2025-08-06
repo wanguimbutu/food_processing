@@ -215,7 +215,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
             },
             callback: function(r) {
                 if (r.message === "OK") {
-                    const selector = `[data-date="${date}"][data-meal-type="${mealType}"][data-customer="${customer}"] [data-project-key="${projectKey}`;
+                   const selector = `[data-date="${date}"][data-meal-type="${mealType}"][data-customer="${customer}"][data-project-key="${projectKey}"]`;
                     $(selector).empty();
                     frappe.msgprint("Meal assignment removed");
                     fetchAndRenderMealAssignments(currentMonday);
