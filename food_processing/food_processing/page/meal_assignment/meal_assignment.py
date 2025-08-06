@@ -130,7 +130,6 @@ def get_customers_for_week(monday):
         return []
 
 
-@frappe.whitelist()
 def submit_meal_plans_for_week(monday, customers=None):
     """Submit meal plans for specific customers or all customers in a week"""
     from frappe.utils import getdate
@@ -217,6 +216,39 @@ def submit_meal_plans_for_week(monday, customers=None):
         frappe.logger().error(error_msg)
         return {"status": "error", "message": str(e)}
 
+@frappe.whitelist()
+def submit_meal_plan_and_create_shopping_list(monday, customer=None):
+    """Combined function to submit meal plan and create shopping list"""
+    try:
+        frappe.logger().info(f"[submit_meal_plan_and_create_shopping_list] START - Monday: {monday}, Customer: {customer}")
+        
+        # Step 1: Submit meal plan
+        submit_result = submit_meal_plans_for_week(monday)  
+        frappe.logger().info(f"[submit_meal_plan_and_create_shopping_list] Submit result: {submit_result}")
+        
+        if submit_result and (submit_result.get("status") == "completed" or submit_result == "no_plans_to_submit"):
+            # Step 2: Create shopping list
+            shopping_result = create_shopping_list(monday)
+            frappe.logger().info(f"[submit_meal_plan_and_create_shopping_list] Shopping list result: {shopping_result}")
+            
+            return {
+                "status": "success",
+                "meal_plan_result": submit_result,
+                "shopping_list_result": shopping_result,
+                "message": "Meal plan submitted and shopping list created successfully"
+            }
+        else:
+            return {
+                "status": "error",
+                "message": f"Failed to submit meal plan: {submit_result}",
+                "meal_plan_result": submit_result
+            }
+            
+    except Exception as e:
+        error_msg = f"Error in submit_meal_plan_and_create_shopping_list: {str(e)}"
+        frappe.logger().error(f"[submit_meal_plan_and_create_shopping_list] {error_msg}")
+        return {"status": "error", "message": error_msg}
+    
 def get_projects_for_week(monday):
     """Get projects that have tasks in the given week"""
     try:
@@ -396,13 +428,20 @@ def update_daily_meal_costs(meal_plan_doc):
 def create_shopping_list(monday):
     """API method: Create shopping list for the meal plan of a given Monday"""
     try:
-       # frappe.msgprint(f"Fetching Meal Plan for Monday: {monday}")
         frappe.logger().info(f"[API CALL] Creating shopping list for Monday: {monday}")
 
-        meal_plan = frappe.get_doc("Meal Plan", {"start_date": monday})
+        # ✅ Fix: Use frappe.get_all() to find meal plans, then get the first one
+        meal_plans = frappe.get_all("Meal Plan", filters={"start_date": monday}, fields=["name"])
 
-        if not meal_plan:
-            frappe.throw(f"No Meal Plan found for Monday: {monday}")
+        if not meal_plans:
+            error_msg = f"No Meal Plan found for Monday: {monday}"
+            frappe.msgprint(error_msg)
+            frappe.logger().error(error_msg)
+            return None
+
+        # Get the first meal plan (or you could loop through all of them)
+        meal_plan = frappe.get_doc("Meal Plan", meal_plans[0].name)
+        frappe.logger().info(f"Found meal plan: {meal_plan.name}")
 
         return _generate_shopping_list(meal_plan)
 
@@ -442,29 +481,60 @@ def _generate_shopping_list(meal_plan_doc):
         unique_meals = set()
         meal_frequency = {}
 
+        # ✅ Add validation for meal plan entries
+        if not meal_plan_doc.meal_plan_entry:
+            frappe.msgprint(f"No meal entries found in meal plan {meal_plan_doc.name}")
+            frappe.logger().warning(f"No meal entries in meal plan {meal_plan_doc.name}")
+            return None
+
         for entry in meal_plan_doc.meal_plan_entry:
-            unique_meals.add(entry.meal_id)
-            meal_frequency[entry.meal_id] = meal_frequency.get(entry.meal_id, 0) + 1
+            if entry.meal_id:  # ✅ Check if meal_id exists
+                unique_meals.add(entry.meal_id)
+                meal_frequency[entry.meal_id] = meal_frequency.get(entry.meal_id, 0) + 1
 
         frappe.logger().info(f"Unique meals found: {unique_meals}")
+        frappe.logger().info(f"Meal frequencies: {meal_frequency}")
+
+        if not unique_meals:
+            frappe.msgprint("No valid meals found in meal plan entries")
+            frappe.logger().warning("No valid meals found in meal plan entries")
+            return None
 
         MAX_COST = 99999999.99  
 
         for meal_id in unique_meals:
             try:
+                # ✅ Check if meal exists before getting it
+                if not frappe.db.exists("Meals", meal_id):
+                    frappe.logger().warning(f"Meal {meal_id} does not exist, skipping")
+                    continue
+
                 meal_doc = frappe.get_doc("Meals", meal_id)
                 frequency = meal_frequency[meal_id]
 
+                frappe.logger().info(f"Processing meal {meal_id} (frequency: {frequency})")
+
                 if hasattr(meal_doc, 'recipes') and meal_doc.recipes:
+                    frappe.logger().info(f"Meal {meal_id} has {len(meal_doc.recipes)} recipes")
+                    
                     for recipe in meal_doc.recipes:
                         recipe_name = recipe.get('recipe_name')
                         if not recipe_name:
+                            frappe.logger().warning(f"Recipe in meal {meal_id} has no recipe_name")
                             continue
 
                         try:
+                            # ✅ Check if recipe exists before getting it
+                            if not frappe.db.exists("Recipe", recipe_name):
+                                frappe.logger().warning(f"Recipe {recipe_name} does not exist, skipping")
+                                continue
+
                             recipe_doc = frappe.get_doc("Recipe", recipe_name)
+                            frappe.logger().info(f"Processing recipe {recipe_name}")
 
                             if hasattr(recipe_doc, 'ingredients') and recipe_doc.ingredients:
+                                frappe.logger().info(f"Recipe {recipe_name} has {len(recipe_doc.ingredients)} ingredients")
+                                
                                 for ingredient in recipe_doc.ingredients:
                                     item_code = ingredient.get('ingredient')
                                     try:
@@ -476,6 +546,7 @@ def _generate_shopping_list(meal_plan_doc):
                                         packet_cost = 0
 
                                     if not item_code:
+                                        frappe.logger().warning(f"Ingredient in recipe {recipe_name} has no item_code")
                                         continue
 
                                     # Total quantity needed (unrounded): per person qty × individuals × frequency
@@ -510,12 +581,23 @@ def _generate_shopping_list(meal_plan_doc):
                                         }
 
                                     frappe.logger().info(f"{item_code}: {rounded_qty} units × {packet_cost} = {total_cost}")
+                            else:
+                                frappe.logger().warning(f"Recipe {recipe_name} has no ingredients")
 
                         except Exception as recipe_error:
                             frappe.logger().error(f"Error processing recipe {recipe_name}: {str(recipe_error)}")
+                else:
+                    frappe.logger().warning(f"Meal {meal_id} has no recipes")
 
             except Exception as meal_error:
                 frappe.logger().error(f"Error processing meal {meal_id}: {str(meal_error)}")
+
+        frappe.logger().info(f"Found {len(ingredient_totals)} total ingredients")
+
+        if not ingredient_totals:
+            frappe.msgprint("No ingredients found to create shopping list")
+            frappe.logger().warning("No ingredients found to create shopping list")
+            return None
 
         for ingredient_data in ingredient_totals.values():
             ingredient_data['qty'] = math.ceil(ingredient_data['qty']) if ingredient_data['qty'] > 0 else 0
