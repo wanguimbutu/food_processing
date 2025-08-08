@@ -1,3 +1,4 @@
+from datetime import timedelta
 import frappe
 
 @frappe.whitelist()
@@ -8,47 +9,35 @@ def save_meal_assignment(assignments_json):
         from datetime import timedelta
 
         data = json.loads(assignments_json)
-        
+
+        # Extract core fields
         date = getdate(data['date'])
         meal_type = data['meal_type']
         meal_id = data['meal_id']
         meal_name = data['meal_name']
         customer = data.get('customer', '')
         project_key = data.get('project_key', '') or ''
+        project_name = data.get('project_name', '') or ''
+        task_name = data.get('task_name', '') or ''
 
-        # Parse project_key: expected format: customer_YYYY-MM-DD_YYYY-MM-DD
-        task_start_date = None
-        task_end_date = None
-        project_name = ""
-        no_of_people = 0
+        # Week boundaries
+        monday = date - timedelta(days=date.weekday())
+        sunday = monday + timedelta(days=6)
 
-        if project_key:
-            parts = project_key.split("_")
-            if len(parts) >= 3:
-                customer_code = parts[0]
-                task_start_date = getdate(parts[1])
-                task_end_date = getdate(parts[2])
+        # Fetch total_individuals from Task
+        total_individuals = 0
+        if task_name:
+            try:
+                task_doc = frappe.get_doc("Task", task_name)
+                total_individuals = int(task_doc.custom_no_of_people or 0)
+                frappe.log_error("Meal Assignment Debug", f"[TASK LOOKUP] People = {total_individuals} from task {task_name}")
+            except Exception as e:
+                frappe.logger().error(f"[ERROR] Failed to get people count from task {task_name}: {e}")
+                frappe.log_error("Meal Assignment Error", f"Failed to fetch custom_no_of_people from task {task_name}")
 
-                # Fetch allocation tasks for that week
-                tasks = get_projects_for_week(task_start_date)
+        frappe.log_error("Meal Assignment Debug", f"[DEBUG] Customer = {customer}, Project = {project_name}, Task = {task_name}, People = {total_individuals}")
 
-                # Match the specific task for this customer and date range
-                matching_task = next(
-                    (t for t in tasks if t["custom_customer"] == customer and
-                     getdate(t["exp_start_date"]) == task_start_date and
-                     getdate(t["exp_end_date"]) == task_end_date),
-                    None
-                )
-
-                if matching_task:
-                    project_name = matching_task.get("project", "")
-                    no_of_people = int(matching_task.get("custom_no_of_people") or 0)
-
-        # Use the actual task's start/end dates for the meal plan range
-        monday = task_start_date or (date - timedelta(days=date.weekday()))
-        sunday = task_end_date or (monday + timedelta(days=6))
-
-        # Get or create meal plan for the customer for that week
+        # Find or create Meal Plan for the week + customer
         meal_plan = frappe.get_all("Meal Plan", filters={
             "start_date": monday,
             "customer": customer
@@ -57,56 +46,48 @@ def save_meal_assignment(assignments_json):
         if meal_plan:
             meal_plan_doc = frappe.get_doc("Meal Plan", meal_plan[0].name)
             if meal_plan_doc.docstatus == 2:
-                # Create amendment if cancelled
+                # Make amendment
                 amendment_doc = frappe.copy_doc(meal_plan_doc)
-                amendment_doc.docstatus = 0 
+                amendment_doc.docstatus = 0
                 amendment_doc.amended_from = meal_plan_doc.name
                 amendment_doc.name = None
                 amendment_doc.insert()
                 meal_plan_doc = amendment_doc
         else:
-            # Create new meal plan
+            # Create new Meal Plan
             meal_plan_doc = frappe.new_doc("Meal Plan")
             meal_plan_doc.start_date = monday
             meal_plan_doc.end_date = sunday
             meal_plan_doc.customer = customer
             meal_plan_doc.group_name = customer
-            meal_plan_doc.selected_projects = ""
             meal_plan_doc.title = f"Meal Plan - {customer} - Week of {monday.strftime('%d %b %Y')}"
+            meal_plan_doc.project = project_name
+            meal_plan_doc.task = task_name
 
-        # Log for debugging
-        frappe.logger().info(f"[save_meal_assignment] Customer: {customer}, Meal: {meal_name}, Project: {project_name}, Individuals: {no_of_people}")
+            if total_individuals > 0:
+                meal_plan_doc.total_individuals = total_individuals
+                frappe.log_error("Meal Assignment Debug", f"[DEBUG] Set total_individuals = {total_individuals} on NEW plan")
 
-        # Set total individuals only if meals are being assigned
-        if no_of_people > 0:
-            meal_plan_doc.total_individuals = no_of_people
+        # Update total_individuals if more accurate
+        if total_individuals > 0 and (
+            not meal_plan_doc.total_individuals or total_individuals < meal_plan_doc.total_individuals
+        ):
+            meal_plan_doc.total_individuals = total_individuals
+            frappe.log_error("Meal Assignment Debug", f"[DEBUG] Overwrote total_individuals = {total_individuals} on plan {meal_plan_doc.name}")
 
-        # Set selected_projects only if project is found
-        if project_name:
-            existing_projects = set(meal_plan_doc.selected_projects.split(", ")) if meal_plan_doc.selected_projects else set()
-            existing_projects.add(project_name)
-            meal_plan_doc.selected_projects = ", ".join(sorted(existing_projects))
-
-        # Set exact start and end dates if available
-        if task_start_date and task_end_date:
-            meal_plan_doc.start_date = task_start_date
-            meal_plan_doc.end_date = task_end_date
-
-        # Check if this entry already exists
+        # Add or update meal plan entry
         existing = [
             e for e in meal_plan_doc.meal_plan_entry
             if getdate(e.date) == date and e.meal_type == meal_type and e.get('project_key', '') == project_key
         ]
 
         if existing:
-            # Update existing entry
             e = existing[0]
             e.meal_id = meal_id
             e.meal_name = meal_name
             e.customer = customer
             e.project_key = project_key
         else:
-            # Add new entry
             meal_plan_doc.append("meal_plan_entry", {
                 "date": date,
                 "meal_type": meal_type,
@@ -116,16 +97,22 @@ def save_meal_assignment(assignments_json):
                 "project_key": project_key
             })
 
-        # Save the meal plan
+        # Set selected_projects
+        if project_name:
+            existing_projects = set(meal_plan_doc.selected_projects.split(", ")) if meal_plan_doc.selected_projects else set()
+            existing_projects.add(project_name)
+            meal_plan_doc.selected_projects = ", ".join(sorted(existing_projects))
+
         meal_plan_doc.save()
         frappe.db.commit()
 
+        frappe.log_error("Meal Assignment Debug", f"[DEBUG] Saved plan: {meal_plan_doc.name} for {customer}")
         return "OK"
 
     except Exception as e:
         error_msg = f"Error in save_meal_assignment: {str(e)}"
         frappe.logger().error(error_msg)
-        frappe.log_error(error_msg)
+        frappe.log_error("Meal Assignment Error", error_msg)
         return str(e)
 
 
@@ -181,18 +168,9 @@ def submit_meal_plans_for_week(monday, customers=None):
                 customers = [customers]
         
         # Get meal plans to submit
-        from datetime import timedelta
-        sunday = monday + timedelta(days=6)
-
-        filters = {
-            "start_date": ["<=", sunday],
-            "end_date": [">=", monday],
-            "docstatus": 0
-        }
-
+        filters = {"start_date": monday, "docstatus": 0}
         if customers:
             filters["customer"] = ["in", customers]
-
         
         meal_plans = frappe.get_all("Meal Plan", filters=filters, fields=["name", "group_name", "docstatus"])
 
@@ -257,64 +235,255 @@ def submit_meal_plans_for_week(monday, customers=None):
         error_msg = f"[submit_meal_plans_for_week] Error: {str(e)}\n{traceback.format_exc()}"
         frappe.logger().error(error_msg)
         return {"status": "error", "message": str(e)}
+    
+@frappe.whitelist()
+def submit_weekly_meal_plans_combined_or_individual(monday, combine_shopping_list=False):
+    """Submit all draft meal plans for the week and generate shopping lists:
+       - If combine_shopping_list=True: create ONE combined shopping list for all plans.
+       - If False: create individual shopping lists per submitted plan.
+    """
+    from frappe.utils import getdate
+    monday = getdate(monday)
+
+    meal_plans = frappe.get_all("Meal Plan", filters={
+        "start_date": monday,
+        "docstatus": 0
+    }, fields=["name", "group_name"])
+
+    if not meal_plans:
+        return {"status": "no_plans_found", "message": "No draft meal plans found"}
+
+    shopping_lists = []
+    submitted_plans = []
+
+    for plan in meal_plans:
+        try:
+            plan_doc = frappe.get_doc("Meal Plan", plan.name)
+            if not plan_doc.group_name:
+                plan_doc.group_name = plan.customer
+
+            plan_doc.submit()
+            submitted_plans.append(plan_doc.name)
+
+            if not combine_shopping_list:
+                list_name = _generate_shopping_list(plan_doc)
+                if list_name:
+                    shopping_lists.append(list_name)
+
+        except Exception as e:
+            frappe.logger().error(f"Error submitting plan {plan.name}: {str(e)}")
+
+    if combine_shopping_list:
+        combined_list_name = create_combined_shopping_list(monday)
+        if combined_list_name:
+            shopping_lists.append(combined_list_name)
+
+    return {
+        "status": "success",
+        "submitted_plans": submitted_plans,
+        "shopping_lists": shopping_lists
+    }
+import math
+
+def create_combined_shopping_list(meal_plan_names):
+    if isinstance(meal_plan_names, str):
+        meal_plan_names = frappe.parse_json(meal_plan_names)
+
+    if not meal_plan_names:
+        frappe.throw("No meal plans provided.")
+
+    frappe.logger().info(f"[START] Combined shopping list for plans: {meal_plan_names}")
+
+    combined_ingredients = {}
+    total_individuals = 0
+    combined_meal_freq = {}
+    group_names = set()
+
+    for plan_name in meal_plan_names:
+        plan = frappe.get_doc("Meal Plan", plan_name)
+        individuals = plan.total_individuals or 1
+        total_individuals += individuals
+        group_names.add(plan.group_name or "")
+
+        for entry in plan.meal_plan_entry:
+            if entry.meal_id:
+                key = entry.meal_id
+                combined_meal_freq[key] = combined_meal_freq.get(key, 0) + 1
+
+    frappe.logger().info(f"Combined meal frequency: {combined_meal_freq}")
+    frappe.logger().info(f"Total individuals across plans: {total_individuals}")
+
+    for meal_id, frequency in combined_meal_freq.items():
+        try:
+            if not frappe.db.exists("Meals", meal_id):
+                frappe.logger().warning(f"Meal {meal_id} does not exist, skipping")
+                continue
+
+            meal_doc = frappe.get_doc("Meals", meal_id)
+
+            if not meal_doc.recipes:
+                frappe.logger().warning(f"Meal {meal_id} has no recipes")
+                continue
+
+            for recipe in meal_doc.recipes:
+                recipe_name = recipe.get('recipe_name')
+                if not recipe_name or not frappe.db.exists("Recipe", recipe_name):
+                    frappe.logger().warning(f"Invalid recipe reference in meal {meal_id}")
+                    continue
+
+                recipe_doc = frappe.get_doc("Recipe", recipe_name)
+
+                for ingredient in recipe_doc.ingredients:
+                    item_code = ingredient.get('ingredient')
+                    if not item_code:
+                        continue
+
+                    try:
+                        qty = float(ingredient.get('qty', 0)) or 0
+                        cost = float(ingredient.get('cost', 0)) or 0
+                    except Exception as e:
+                        frappe.logger().warning(f"Invalid qty/cost for {item_code}: {e}")
+                        continue
+
+                    total_qty = qty * frequency * total_individuals
+                    rounded_qty = math.ceil(total_qty)
+                    total_cost = round(rounded_qty * cost, 2)
+                    uom = ingredient.get('uom', '')
+
+                    if item_code in combined_ingredients:
+                        combined_ingredients[item_code]['qty'] += rounded_qty
+                        combined_ingredients[item_code]['cost'] += total_cost
+                    else:
+                        combined_ingredients[item_code] = {
+                            'item_code': item_code,
+                            'qty': rounded_qty,
+                            'cost': total_cost,
+                            'uom': uom
+                        }
+
+        except Exception as meal_error:
+            frappe.logger().error(f"Error processing meal {meal_id}: {meal_error}")
+
+    if not combined_ingredients:
+        frappe.msgprint("No ingredients found in the selected meal plans.")
+        frappe.logger().warning("No ingredients found for combined list.")
+        return None
+
+    # Create new Shopping List
+    shopping_list_doc = frappe.new_doc("Shopping List")
+    shopping_list_doc.combined = 1
+    shopping_list_doc.meal_plan_names = ", ".join(meal_plan_names)
+    shopping_list_doc.title = f"Combined List: {frappe.utils.nowdate()}"
+    shopping_list_doc.meal_plan_link = ", ".join(meal_plan_names)
+    shopping_list_doc.customer_group = ", ".join(sorted(group_names))
+
+    for item in combined_ingredients.values():
+        item['qty'] = math.ceil(item['qty'])
+        item['cost'] = round(item['cost'], 2)
+
+        shopping_list_doc.append("shopping_details", {
+            "item_code": item['item_code'],
+            "qty": item['qty'],
+            "cost": item['cost'],
+            "uom": item.get('uom', '')
+        })
+
+        frappe.logger().info(f"Added: {item['item_code']} → Qty: {item['qty']}, Cost: {item['cost']}")
+
+    shopping_list_doc.save()
+    frappe.msgprint(f"Combined Shopping List created: {shopping_list_doc.name}")
+    frappe.logger().info(f"[DONE] Combined Shopping List: {shopping_list_doc.name}")
+
+    return shopping_list_doc.name
 
 @frappe.whitelist()
-def submit_meal_plan_and_create_shopping_list(monday, customer=None):
-    """Combined function to submit meal plan and create shopping list"""
-    try:
-        frappe.logger().info(f"[submit_meal_plan_and_create_shopping_list] START - Monday: {monday}, Customer: {customer}")
-        
-        # Step 1: Submit meal plan
-        submit_result = submit_meal_plans_for_week(monday)  
-        frappe.logger().info(f"[submit_meal_plan_and_create_shopping_list] Submit result: {submit_result}")
-        
-        if submit_result and (submit_result.get("status") == "completed" or submit_result == "no_plans_to_submit"):
-            # Step 2: Create shopping list
-            shopping_result = create_shopping_list(monday)
-            frappe.logger().info(f"[submit_meal_plan_and_create_shopping_list] Shopping list result: {shopping_result}")
-            
-            return {
-                "status": "success",
-                "meal_plan_result": submit_result,
-                "shopping_list_result": shopping_result,
-                "message": "Meal plan submitted and shopping list created successfully"
-            }
-        else:
-            return {
-                "status": "error",
-                "message": f"Failed to submit meal plan: {submit_result}",
-                "meal_plan_result": submit_result
-            }
-            
-    except Exception as e:
-        error_msg = f"Error in submit_meal_plan_and_create_shopping_list: {str(e)}"
-        frappe.logger().error(f"[submit_meal_plan_and_create_shopping_list] {error_msg}")
-        return {"status": "error", "message": error_msg}
-    
+def submit_meal_plan_and_create_shopping_list(monday, combine=False):
+    from frappe.utils import getdate
+    from datetime import timedelta
+
+    monday = getdate(monday)
+    sunday = monday + timedelta(days=6)
+    combine = frappe.parse_json(combine)
+
+    # 🔍 Filter draft Meal Plans in that week
+    meal_plans = frappe.get_all("Meal Plan", filters={
+    "start_date": ["<=", sunday],
+    "end_date": [">=", monday],
+    "docstatus": 0
+    }, fields=["name", "group_name", "start_date", "end_date"])
+
+    if not meal_plans:
+        return {
+            "status": "error",
+            "message": "No draft meal plans found for the selected week."
+        }
+
+    if combine:
+        plan_names = [mp.name for mp in meal_plans]
+
+        shopping_list = create_combined_shopping_list(plan_names)
+
+        for plan_name in plan_names:
+            frappe.get_doc("Meal Plan", plan_name).submit()
+
+        return {
+            "status": "success",
+            "message": f"Combined shopping list created for {len(plan_names)} meal plans.",
+            "list": shopping_list
+        }
+
+    else:
+        results = []
+
+        for mp in meal_plans:
+            try:
+                plan_doc = frappe.get_doc("Meal Plan", mp.name)
+
+                shopping_list = _generate_shopping_list(plan_doc)
+
+                plan_doc.submit()
+
+                results.append({
+                    "group": plan_doc.group_name,
+                    "meal_plan": plan_doc.name,
+                    "shopping_list": shopping_list
+                })
+
+            except Exception as e:
+                frappe.log_error(frappe.get_traceback(), f"Error processing meal plan {mp.name}")
+                results.append({
+                    "group": mp.group_name,
+                    "meal_plan": mp.name,
+                    "error": str(e)
+                })
+
+        return {
+            "status": "success",
+            "message": f"Submitted {len(results)} meal plans and created individual shopping lists.",
+            "details": results
+        }
+
+
 def get_projects_for_week(monday):
-    """Return Meal Plan Allocation tasks for the given week"""
+    """Get projects that have tasks in the given week"""
     try:
         from datetime import timedelta
-
+        
         sunday = monday + timedelta(days=6)
-
+        
+        # Get tasks for the week
         tasks = frappe.get_all("Task", filters={
             "subject": "Meal Plan Allocation",
             "exp_start_date": ["<=", sunday],
             "exp_end_date": [">=", monday],
             "custom_is_meals_at_camp": 1
-        }, fields=[
-            "project",
-            "custom_no_of_people",
-            "custom_customer",
-            "exp_start_date",
-            "exp_end_date"
-        ])
-
-        return tasks
-
+        }, fields=["project"])
+        
+        projects = [task.project for task in tasks if task.project]
+        return list(set(projects))  # Remove duplicates
+        
     except Exception as e:
-        frappe.logger().error(f"Error getting meal allocation tasks: {str(e)}")
+        frappe.logger().error(f"Error getting projects for week: {str(e)}")
         return []
 
 
@@ -331,20 +500,22 @@ def get_meal_entries_for_dates(dates_json):
         
         for date_str in dates:
             date = getdate(date_str)
-            week_start = date - timedelta(days=date.weekday())
-            week_end = week_start + timedelta(days=6)
-
-            # Find meal plans overlapping the week
+            monday = date - timedelta(days=date.weekday())
+            
+            # Find meal plans for this week that are NOT cancelled
             meal_plans = frappe.get_all("Meal Plan", 
                 filters={
-                    "start_date": ["<=", week_end],
-                    "end_date": [">=", week_start],
-                    "docstatus": ["!=", 2]
+                    "start_date": monday,
+                    "docstatus": ["!=", 2]  
                 }, 
                 fields=["name", "docstatus"]
             )
             
             for meal_plan in meal_plans:
+                # Skip if meal plan is cancelled
+                if meal_plan.docstatus == 2:
+                    continue
+                    
                 meal_plan_doc = frappe.get_doc("Meal Plan", meal_plan.name)
                 
                 for entry in meal_plan_doc.meal_plan_entry:
@@ -411,20 +582,6 @@ def remove_meal_assignment(date, meal_type, customer, project_key=None):
     
 
 @frappe.whitelist()
-def save_meal_plan_summary(monday, total_individuals):
-    from frappe.utils import getdate
-    monday = getdate(monday)
-    plans = frappe.get_all("Meal Plan", filters={"start_date": monday}, fields=["name"])
-    if not plans:
-        return "not_found"
-    plan_doc = frappe.get_doc("Meal Plan", plans[0].name)
-    plan_doc.total_individuals = int(total_individuals or 0)
-    plan_doc.save()
-    frappe.db.commit()
-    return "OK"
-   
-
-@frappe.whitelist()
 def update_daily_meal_costs(meal_plan_doc):
     """Update Daily Meal Costs table based on meal plan entries"""
     try:
@@ -469,40 +626,32 @@ def update_daily_meal_costs(meal_plan_doc):
 
 
 @frappe.whitelist()
-def create_shopping_list(monday=None):
-    """Create a shopping list for the most recently submitted meal plan (optionally within a week)"""
-    from frappe.utils import getdate
-    from datetime import timedelta
-
+def create_shopping_list(monday):
+    """API method: Create shopping list for the meal plan of a given Monday"""
     try:
-        filters = {"docstatus": 1}
+        frappe.logger().info(f"[API CALL] Creating shopping list for Monday: {monday}")
 
-        if monday:
-            monday = getdate(monday)
-            sunday = monday + timedelta(days=6)
+        meal_plans = frappe.get_all("Meal Plan", filters={"start_date": monday}, fields=["name"])
 
-            filters["start_date"] = ["<=", sunday]
-            filters["end_date"] = [">=", monday]
+        if not meal_plans:
+            error_msg = f"No Meal Plan found for Monday: {monday}"
+            frappe.msgprint(error_msg)
+            frappe.logger().error(error_msg)
+            return None
 
-        latest_plan = frappe.get_all("Meal Plan", filters=filters, fields=["name"], order_by="modified desc", limit=1)
+        # Get meal plans
+        meal_plan = frappe.get_doc("Meal Plan", meal_plans[0].name)
+        frappe.logger().info(f"Found meal plan: {meal_plan.name}")
 
-        if not latest_plan:
-            return {"status": "error", "message": "No submitted Meal Plan found"}
-
-        latest_doc = frappe.get_doc("Meal Plan", latest_plan[0].name)
-
-        # Call your existing shopping list generation logic
-        result = _generate_shopping_list(latest_doc)
-
-        return {
-            "status": "success",
-            "message": f"Shopping list created for {latest_doc.name}",
-            "details": result
-        }
+        return _generate_shopping_list(meal_plan)
 
     except Exception as e:
-        frappe.logger().error(f"Error in create_shopping_list: {str(e)}")
-        return {"status": "error", "message": str(e)}
+        error_msg = f"Error creating shopping list: {str(e)}"
+        frappe.logger().error(error_msg)
+        frappe.log_error(error_msg)
+        frappe.msgprint(error_msg)
+        return None
+
 
 import math
 
@@ -532,14 +681,14 @@ def _generate_shopping_list(meal_plan_doc):
         unique_meals = set()
         meal_frequency = {}
 
-        # ✅ Add validation for meal plan entries
+        # Add validation for meal plan entries
         if not meal_plan_doc.meal_plan_entry:
             frappe.msgprint(f"No meal entries found in meal plan {meal_plan_doc.name}")
             frappe.logger().warning(f"No meal entries in meal plan {meal_plan_doc.name}")
             return None
 
         for entry in meal_plan_doc.meal_plan_entry:
-            if entry.meal_id:  # ✅ Check if meal_id exists
+            if entry.meal_id:  
                 unique_meals.add(entry.meal_id)
                 meal_frequency[entry.meal_id] = meal_frequency.get(entry.meal_id, 0) + 1
 
@@ -555,7 +704,6 @@ def _generate_shopping_list(meal_plan_doc):
 
         for meal_id in unique_meals:
             try:
-                # ✅ Check if meal exists before getting it
                 if not frappe.db.exists("Meals", meal_id):
                     frappe.logger().warning(f"Meal {meal_id} does not exist, skipping")
                     continue
@@ -575,7 +723,6 @@ def _generate_shopping_list(meal_plan_doc):
                             continue
 
                         try:
-                            # ✅ Check if recipe exists before getting it
                             if not frappe.db.exists("Recipe", recipe_name):
                                 frappe.logger().warning(f"Recipe {recipe_name} does not exist, skipping")
                                 continue

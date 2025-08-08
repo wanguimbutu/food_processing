@@ -28,54 +28,43 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
     }
 
     function submitMealPlanForWeek(mondayDate) {
-    const mondayStr = frappe.datetime.obj_to_str(mondayDate);
-    const totalIndividuals = parseInt($('#total-people').text()) || 0;
-
-    console.log("Saving meal plan summary and submitting for date:", mondayStr);
-
-    // Step 1: Save summary
-    frappe.call({
-        method: 'food_processing.food_processing.page.meal_assignment.meal_assignment.save_meal_plan_summary',
-        args: {
-            monday: mondayStr,
-            total_individuals: totalIndividuals
-        },
-        callback: function(res) {
-            if (res.message && res.message.includes("OK")) {
-                console.log("Summary saved. Proceeding to submit and create shopping list...");
-
-                // Step 2: Submit and create shopping list in one call
-                frappe.call({
-                    method: 'food_processing.food_processing.page.meal_assignment.meal_assignment.submit_meal_plan_and_create_shopping_list',
-                    args: {
-                        monday: mondayStr
-                    },
-                    callback: function(r) {
-                        console.log("Response from combined function:", r);
-
-                        if (r.message && r.message.status === 'success') {
-                            frappe.msgprint(__('Meal Plan submitted and Shopping List created successfully!'));
-                        } else {
-                            const errorMsg = r.message ? r.message.message : 'Unknown error';
-                            frappe.msgprint(__(`Error: ${errorMsg}`));
-                        }
-                    },
-                    error: function(err) {
-                        console.error("Error in combined operation:", err);
-                        frappe.msgprint(__('Server error during submission and shopping list creation'));
-                    }
-                });
-
-            } else {
-                frappe.msgprint(__('Could not update total individuals'));
+        frappe.confirm(
+            'Do you want to generate a <strong>combined shopping list</strong> for all customers this week?',
+            function () {
+                // YES - Combined
+                submitWithCombinedOption(mondayDate, true);
+            },
+            function () {
+                // NO - Separate per customer
+                submitWithCombinedOption(mondayDate, false);
             }
-        },
-        error: function(err) {
-            console.error("Error updating total individuals:", err);
-            frappe.msgprint(__('Failed to update total individuals'));
-        }
-    });
-}
+        );
+    }
+
+
+    function submitWithCombinedOption(mondayDate, combine) {
+        const mondayStr = frappe.datetime.obj_to_str(mondayDate);
+
+        frappe.call({
+            method: 'food_processing.food_processing.page.meal_assignment.meal_assignment.submit_meal_plan_and_create_shopping_list',
+            args: {
+                monday: mondayStr,
+                combine: combine
+            },
+            callback: function (r) {
+                if (r.message && r.message.status === 'success') {
+                    frappe.msgprint(__('Meal Plan(s) submitted and Shopping List(s) created successfully!'));
+                } else {
+                    const errorMsg = r.message ? r.message.message : 'Unknown error';
+                    frappe.msgprint(__(`Error: ${errorMsg}`));
+                }
+            },
+            error: function (err) {
+                frappe.msgprint(__('Server error during submission'));
+            }
+        });
+    }
+
     
     // Fixed function to get visible dates for the current week
     function getVisibleDates(monday) {
@@ -215,7 +204,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
             },
             callback: function(r) {
                 if (r.message === "OK") {
-                   const selector = `[data-date="${date}"][data-meal-type="${mealType}"][data-customer="${customer}"][data-project-key="${projectKey}"]`;
+                    const selector = `[data-date="${date}"][data-meal-type="${mealType}"][data-customer="${customer}"][data-project-key="${projectKey}"]`;
                     $(selector).empty();
                     frappe.msgprint("Meal assignment removed");
                     fetchAndRenderMealAssignments(currentMonday);
@@ -229,35 +218,28 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
     }
         
     function saveMealAssignment(assignments) {
-    const total_individuals = parseInt($('#total-people').text()) || 0;
-    const assignmentData = {
-        ...assignments,
-        total_individuals: total_individuals
-    };
+        console.log("Sending assignment data:", assignments);
 
-    console.log("Sending assignment data:", assignmentData); // Debug log
-    
-    frappe.call({
-        method: "food_processing.food_processing.page.meal_assignment.meal_assignment.save_meal_assignment",
-        args: {
-            assignments_json: JSON.stringify(assignmentData)
-        },
-        callback: function(r) {
-            console.log("Save response:", r); // Debug log
-            if (r.message === "OK") {
-                // Refresh the display to show the saved assignment
-                fetchAndRenderMealAssignments(currentMonday);
-            } else {
-                console.error("Server returned:", r.message);
-                frappe.msgprint("Save failed - Server response: " + (r.message || "Unknown error"));
+        frappe.call({
+            method: "food_processing.food_processing.page.meal_assignment.meal_assignment.save_meal_assignment",
+            args: {
+                assignments_json: JSON.stringify(assignments)
+            },
+            callback: function(r) {
+                console.log("Save response:", r);
+                if (r.message === "OK") {
+                    fetchAndRenderMealAssignments(currentMonday);
+                } else {
+                    frappe.msgprint("Save failed: " + (r.message || "Unknown error"));
+                }
+            },
+            error: function(err) {
+                console.error("Error saving meal assignment:", err);
+                frappe.msgprint("Network error while saving: " + (err.message || "Connection failed"));
             }
-        },
-        error: function(err) {
-            console.error("Error saving meal assignment:", err);
-            frappe.msgprint("Network error while saving: " + (err.message || "Connection failed"));
-        }
-    });
-}
+        });
+    }
+
     function formatDate(date) {
         return frappe.datetime.obj_to_str(date);
     }
@@ -368,6 +350,8 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                     ['exp_end_date', '>=', mondayStr]
                 ],
                 fields: [
+                    'name',
+                    'project',
                     'custom_customer',
                     'custom_customer_name',
                     'custom_no_of_people',
@@ -399,7 +383,9 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                             no_of_people: no_of_people,
                             days: {},
                             exp_start_date: task.exp_start_date,
-                            exp_end_date: task.exp_end_date
+                            exp_end_date: task.exp_end_date,
+                            task_name: task.name,
+                            project: task.project
                         };
                     }
 
@@ -469,7 +455,8 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                             cell.attr('data-meal-type', mealType);
                             cell.attr('data-customer', customer);
                             cell.attr('data-project-key', taskKey); 
-
+                            cell.attr('data-task-name', entry.task_name || '');
+                            cell.attr('data-project-name', entry.project_name || '');
                             if (highlight || isActive) {
                                 cell.css('background-color', color);
                                 cell.addClass('droppable-cell');
@@ -493,6 +480,11 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                                     const cellDate = key;
                                     const mealType = meals[j];
                                     const currentCustomer = customer;
+                                    const taskName = $(this).data('task-name');
+                                    const projectName = $(this).data('project-name');
+
+                                    const taskKey = $(this).data('project-key');
+                                    const entry = customerMap[taskKey] || {};
 
                                     $(this).html(`
                                         <div class="flex items-center justify-between px-1">
@@ -504,7 +496,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                                     // Add remove click handler
                                     $(this).find('.remove-meal').on('click', function(e) {
                                         e.stopPropagation();
-                                        removeMealAssignment(cellDate, mealType, currentCustomer);
+                                        removeMealAssignment(cellDate, mealType, currentCustomer, taskKey);
                                     });
 
                                     saveMealAssignment({
@@ -513,11 +505,13 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                                         meal_id: meal_id,
                                         meal_name: mealName,
                                         customer: currentCustomer,
-                                        project_key:taskKey,
+                                        project_key: taskKey,
+                                        project_name: projectName,
+                                        task_name: taskName,
                                         small_appetite: parseInt($("#servings-small").val()) || 0,
                                         normal_appetite: parseInt($("#servings-normal").val()) || 0,
                                         large_appetite: parseInt($("#servings-large").val()) || 0,
-                                        total_individuals: parseInt($('#total-people').text()) || 0
+                                        
                                     });
                                 });
 
@@ -529,7 +523,12 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                                     const cellDate = key;
                                     const mealType = meals[j];
                                     const currentCustomer = customer;
+                                    const taskName = $(this).data('task-name');
+                                    const projectName = $(this).data('project-name');
 
+                                    const taskKey = $(this).data('project-key');
+                                    const entry = customerMap[taskKey] || {};
+                                    
                                     $(this).html(`
                                         <div class="flex items-center justify-between px-1">
                                             <span class="truncate" title="${selectedMeal}">${selectedMeal}</span>
@@ -549,10 +548,12 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                                         meal_id: meal_id,
                                         meal_name: selectedMeal,
                                         customer: currentCustomer,
+                                        project_name: projectName,
+                                        task_name: taskName,
                                         small_appetite: parseInt($("#servings-small").val()) || 0,
                                         normal_appetite: parseInt($("#servings-normal").val()) || 0,
                                         large_appetite: parseInt($("#servings-large").val()) || 0,
-                                        total_individuals: parseInt($('#total-people').text()) || 0
+                                        
                                     });
                                 });
                             }
