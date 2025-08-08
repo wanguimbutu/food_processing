@@ -12,6 +12,7 @@
   "column_break_zmsu",
   "selected_projects",
   "required_by",
+  "customer_group",
   "section_break_bzed",
   "shopping_details",
   "section_break_rbgm",
@@ -78,12 +79,17 @@
    "fieldname": "meal_plan_link",
    "fieldtype": "Small Text",
    "label": "Meal Plan Link"
+  },
+  {
+   "fieldname": "customer_group",
+   "fieldtype": "Data",
+   "label": "Customer Group"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-05-14 15:53:39.380437",
+ "modified": "2025-08-08 12:07:35.015383",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Shopping List",
