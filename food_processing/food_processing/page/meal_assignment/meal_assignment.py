@@ -348,7 +348,7 @@ def create_combined_shopping_list(meal_plan_names):
                     total_qty = qty * frequency * total_individuals
                     rounded_qty = math.ceil(total_qty)
                     total_cost = round(rounded_qty * cost, 2)
-                    uom = ingredient.get('uom', '')
+                    uom = ingredient.get('unit_of_measure', '')
 
                     if item_code in combined_ingredients:
                         combined_ingredients[item_code]['qty'] += rounded_qty
@@ -376,6 +376,7 @@ def create_combined_shopping_list(meal_plan_names):
     shopping_list_doc.title = f"Combined List: {frappe.utils.nowdate()}"
     shopping_list_doc.meal_plan_link = ", ".join(meal_plan_names)
     shopping_list_doc.customer_group = ", ".join(sorted(group_names))
+
 
     for item in combined_ingredients.values():
         item['qty'] = math.ceil(item['qty'])
@@ -674,6 +675,7 @@ def _generate_shopping_list(meal_plan_doc):
         else:
             shopping_list_doc = frappe.new_doc("Shopping List")
             shopping_list_doc.meal_plan = meal_plan_doc.name
+            shopping_list_doc.meal_pan = meal_plan_doc.group_name or ""
             shopping_list_doc.selected_projects = meal_plan_doc.selected_projects or ""
             frappe.logger().info("Creating new Shopping List")
 
@@ -762,7 +764,7 @@ def _generate_shopping_list(meal_plan_doc):
 
                                     total_cost = round(total_cost, 2)
 
-                                    uom = ingredient.get('uom', '') or ''
+                                    uom = ingredient.get('unit_of_measure', '') or ''
 
                                     if item_code in ingredient_totals:
                                         ingredient_totals[item_code]['qty'] += rounded_qty
