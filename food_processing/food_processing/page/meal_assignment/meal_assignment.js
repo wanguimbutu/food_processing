@@ -4,6 +4,12 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
 		title: 'Meal Assignment',
 		single_column: true
 	});
+    frappe.require([
+        "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"
+    ], function() {
+        console.log("html2pdf loaded");
+    }
+    )
 
 	let currentDate = frappe.datetime.nowdate();
     let container = $('<div class="meal-assignment-container p-4 overflow-auto"></div>').appendTo(page.body);
@@ -15,6 +21,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
     }, 'check');
     page.add_action_item('Go to Shopping Lists', function() {
     frappe.set_route('List', 'Shopping List');
+
 });
 
 
@@ -300,6 +307,9 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                 <h4>Week of ${frappe.datetime.str_to_user(mondayStr)}</h4>
                 <button class="btn btn-secondary" id="next-week">Next</button>
             </div>
+             <div>
+                    <button class="btn btn-primary" id="download-pdf">Download PDF</button>
+            </div>
         `);
         container.append(nav);
         
@@ -324,6 +334,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                     </div>
                 </div>
             </div>
+            
         `);
 
         container.append(summary);
@@ -567,7 +578,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
 
                 table.append(tbody);
 
-                const scrollContainer = $('<div style="overflow-x:auto; width:100%;"></div>');
+                const scrollContainer = $('<div id="meal-calendar" style="overflow-x:auto; width:100%; padding: 20px; background: white;"></div>');
                 scrollContainer.append(table);
 
                 container.append(scrollContainer);
@@ -650,6 +661,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                             <button class="btn btn-sm btn-secondary" id="prev-meals" ${page === 1 ? 'disabled' : ''}>Previous</button>
                             <button class="btn btn-sm btn-secondary" id="next-meals" ${(end >= filteredMeals.length) ? 'disabled' : ''}>Next</button>
                         </div>
+                       
                     `);
                     mealContainer.append(controls);
 
@@ -731,6 +743,27 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
         });
     }
 
+    $(document).on('click', '#download-pdf', function () {
+        const element = document.querySelector('#meal-calendar');
+
+        if (!element) {
+            frappe.msgprint("Calendar content not found!");
+            return;
+        }
+
+        const options = {
+            margin: 0.2,
+            filename: `Meal_Calendar_${formatDate(currentMonday)}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: 'in', format: 'a2', orientation: 'landscape' }
+        };
+
+        html2pdf().set(options).from(element).save();
+    });
+
     // Initialize the page
     renderWeekView(currentDate);
+
+
 };
