@@ -307,7 +307,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                 <h4>Week of ${frappe.datetime.str_to_user(mondayStr)}</h4>
                 <button class="btn btn-secondary" id="next-week">Next</button>
             </div>
-             <div>
+             <div class="mb-4 flex justify-end">
                     <button class="btn btn-primary" id="download-pdf">Download PDF</button>
             </div>
         `);
