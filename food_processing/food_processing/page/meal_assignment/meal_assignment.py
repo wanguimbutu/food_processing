@@ -354,19 +354,14 @@ def create_combined_shopping_list(meal_plan_names):
                     # 🔹 NEW: Apply conversion factor for combined shopping list too
                     conversion_factor = get_item_conversion_factor(item_code)
                     if conversion_factor and conversion_factor > 0:
-                        # Apply conversion factor to get quantity in purchase units
-                        converted_qty = rounded_qty * conversion_factor
-                        frappe.logger().info(f"Quantity conversion for {item_code}: {rounded_qty} liters × {conversion_factor} = {converted_qty} jerrycans")
-                        
-                        # Cost calculation: converted quantity × unit cost
-                        total_cost = round(converted_qty * cost, 2)
-                        frappe.logger().info(f"Cost calculation for {item_code}: {converted_qty} jerrycans × {cost} = {total_cost}")
-                        
-                        # Round up the converted quantity for purchasing
-                        rounded_qty = math.ceil(converted_qty)
+                        # cost = full purchase unit cost (e.g., jerrican price)
+                        unit_cost = cost / conversion_factor  # cost per stock UOM (per litre)
+                        total_cost = round(total_qty * unit_cost, 2)
+                        frappe.logger().info(f"Cost calc for {item_code}: {total_qty} × {unit_cost} (per UOM) = {total_cost}")
                     else:
-                        # No conversion factor, use original calculation
-                        total_cost = round(rounded_qty * cost, 2)
+                        # if cost is already per UOM
+                        total_cost = round(total_qty * cost, 2)
+
                     uom = ingredient.get('unit_of_measure', '')
 
                     # 🔹 ENHANCED AGGREGATION: Combine same ingredients
@@ -787,11 +782,13 @@ def _generate_shopping_list(meal_plan_doc):
                                     # 🔹 NEW: Check for conversion factor and apply it
                                     conversion_factor = get_item_conversion_factor(item_code)
                                     if conversion_factor and conversion_factor > 0:
-                                        converted_qty = rounded_qty * conversion_factor
-                                        frappe.logger().info(f"Applied conversion factor {conversion_factor} to {item_code}: {rounded_qty} → {converted_qty}")
-                                        rounded_qty = math.ceil(converted_qty)
-                                    
-                                    total_cost = rounded_qty * packet_cost
+                                        # packet_cost = full purchase unit cost (e.g., jerrican price)
+                                        unit_cost = packet_cost / conversion_factor  # cost per stock UOM (e.g., per litre)
+                                        total_cost = total_qty * unit_cost
+                                        frappe.logger().info(f"Cost calc for {item_code}: {total_qty} × {unit_cost} (per UOM) = {total_cost}")
+                                    else:
+                                        # no conversion factor → assume packet_cost is already per UOM
+                                        total_cost = total_qty * packet_cost
 
                                     if total_cost > MAX_COST:
                                         frappe.logger().warning(f"Cost for {item_code} capped from {total_cost} to {MAX_COST}")
