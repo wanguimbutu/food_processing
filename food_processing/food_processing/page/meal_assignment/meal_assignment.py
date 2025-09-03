@@ -354,12 +354,10 @@ def create_combined_shopping_list(meal_plan_names):
                     # 🔹 NEW: Apply conversion factor for combined shopping list too
                     conversion_factor = get_item_conversion_factor(item_code)
                     if conversion_factor and conversion_factor > 0:
-                        # cost = full purchase unit cost (e.g., jerrican price)
-                        unit_cost = cost / conversion_factor  # cost per stock UOM (per litre)
-                        total_cost = round(total_qty * unit_cost, 2)
-                        frappe.logger().info(f"Cost calc for {item_code}: {total_qty} × {unit_cost} (per UOM) = {total_cost}")
+                        purchase_qty = total_qty * conversion_factor
+                        total_cost = round(purchase_qty * cost, 2)
+                        frappe.logger().info(f"Cost calc for {item_code}: {total_qty} stock UOM × {conversion_factor} = {purchase_qty} purchase UOM × {cost} = {total_cost}")
                     else:
-                        # if cost is already per UOM
                         total_cost = round(total_qty * cost, 2)
 
                     uom = ingredient.get('unit_of_measure', '')
@@ -779,16 +777,15 @@ def _generate_shopping_list(meal_plan_doc):
                                     total_qty = per_person_qty * frequency * total_individuals
                                     rounded_qty = math.ceil(total_qty) if total_qty > 0 else 0
                                     
-                                    # 🔹 NEW: Check for conversion factor and apply it
                                     conversion_factor = get_item_conversion_factor(item_code)
                                     if conversion_factor and conversion_factor > 0:
-                                        # packet_cost = full purchase unit cost (e.g., jerrican price)
-                                        unit_cost = packet_cost / conversion_factor  # cost per stock UOM (e.g., per litre)
-                                        total_cost = total_qty * unit_cost
-                                        frappe.logger().info(f"Cost calc for {item_code}: {total_qty} × {unit_cost} (per UOM) = {total_cost}")
+                                        # Convert stock qty (litres) into purchase UOM (e.g., jerricans)
+                                        purchase_qty = total_qty * conversion_factor
+                                        total_cost = round(purchase_qty * packet_cost, 2)
+                                        frappe.logger().info(f"Cost calc for {item_code}: {total_qty} stock UOM × {conversion_factor} = {purchase_qty} purchase UOM × {packet_cost} = {total_cost}")
                                     else:
-                                        # no conversion factor → assume packet_cost is already per UOM
-                                        total_cost = total_qty * packet_cost
+                                        # If no conversion factor, assume packet_cost is per stock UOM
+                                        total_cost = round(total_qty * packet_cost, 2)
 
                                     if total_cost > MAX_COST:
                                         frappe.logger().warning(f"Cost for {item_code} capped from {total_cost} to {MAX_COST}")
