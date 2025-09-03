@@ -346,17 +346,17 @@ def create_combined_shopping_list(meal_plan_names):
                         continue
 
                     total_qty = qty * frequency * total_individuals
-                    rounded_qty = math.ceil(total_qty)
-                    total_cost = round(rounded_qty * cost, 2)
+                    #rounded_qty = math.ceil(total_qty)
+                    total_cost = round(total_qty * cost, 2)
                     uom = ingredient.get('unit_of_measure', '')
 
                     if item_code in combined_ingredients:
-                        combined_ingredients[item_code]['qty'] += rounded_qty
+                        combined_ingredients[item_code]['qty'] += total_qty
                         combined_ingredients[item_code]['cost'] += total_cost
                     else:
                         combined_ingredients[item_code] = {
                             'item_code': item_code,
-                            'qty': rounded_qty,
+                            'qty': total_qty,
                             'cost': total_cost,
                             'uom': uom
                         }
@@ -753,10 +753,10 @@ def _generate_shopping_list(meal_plan_doc):
                                     total_qty = per_person_qty * frequency * total_individuals
 
                                     # Round up total quantity for whole packets
-                                    rounded_qty = math.ceil(total_qty) if total_qty > 0 else 0
+                                    #rounded_qty = math.ceil(total_qty) if total_qty > 0 else 0
 
                                     # Total cost = number of packets * cost per packet
-                                    total_cost = rounded_qty * packet_cost
+                                    total_cost = total_qty * packet_cost
 
                                     if total_cost > MAX_COST:
                                         frappe.logger().warning(f"Cost for {item_code} capped from {total_cost} to {MAX_COST}")
@@ -767,7 +767,7 @@ def _generate_shopping_list(meal_plan_doc):
                                     uom = ingredient.get('unit_of_measure', '') or ''
 
                                     if item_code in ingredient_totals:
-                                        ingredient_totals[item_code]['qty'] += rounded_qty
+                                        ingredient_totals[item_code]['qty'] += total_qty
                                         ingredient_totals[item_code]['cost'] += total_cost
                                         
                                         if not ingredient_totals[item_code].get('uom'):
@@ -775,12 +775,12 @@ def _generate_shopping_list(meal_plan_doc):
                                     else:
                                         ingredient_totals[item_code] = {
                                             'item_code': item_code,
-                                            'qty': rounded_qty,
+                                            'qty': total_qty,
                                             'cost': total_cost,
                                             'uom': uom
                                         }
 
-                                    frappe.logger().info(f"{item_code}: {rounded_qty} units × {packet_cost} = {total_cost}")
+                                    frappe.logger().info(f"{item_code}: {total_qty} units × {packet_cost} = {total_cost}")
                             else:
                                 frappe.logger().warning(f"Recipe {recipe_name} has no ingredients")
 
