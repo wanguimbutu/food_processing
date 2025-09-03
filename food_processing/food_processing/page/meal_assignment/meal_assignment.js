@@ -526,6 +526,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                                     });
                                 });
 
+                                // Fix the click handler in the cell.on('click') function
                                 cell.on('click', function () {
                                     if (!selectedMeal) return;
 
@@ -537,7 +538,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                                     const taskName = $(this).data('task-name');
                                     const projectName = $(this).data('project-name');
 
-                                    const taskKey = $(this).data('project-key');
+                                    const taskKey = $(this).data('project-key'); // ✅ This was already correct
                                     const entry = customerMap[taskKey] || {};
                                     
                                     $(this).html(`
@@ -550,7 +551,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                                     // Add remove click handler
                                     $(this).find('.remove-meal').on('click', function(e) {
                                         e.stopPropagation();
-                                        removeMealAssignment(cellDate, mealType, currentCustomer,taskKey);
+                                        removeMealAssignment(cellDate, mealType, currentCustomer, taskKey);
                                     });
 
                                     saveMealAssignment({
@@ -559,12 +560,12 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                                         meal_id: meal_id,
                                         meal_name: selectedMeal,
                                         customer: currentCustomer,
+                                        project_key: taskKey, // ✅ ADD THIS LINE - was missing!
                                         project_name: projectName,
                                         task_name: taskName,
                                         small_appetite: parseInt($("#servings-small").val()) || 0,
                                         normal_appetite: parseInt($("#servings-normal").val()) || 0,
                                         large_appetite: parseInt($("#servings-large").val()) || 0,
-                                        
                                     });
                                 });
                             }
