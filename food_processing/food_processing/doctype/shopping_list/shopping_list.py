@@ -58,9 +58,8 @@ def create_material_request(shopping_list_name):
             "target_warehouse": default_warehouse,
         })
 
-    # Mark as unsaved (like a new doc)
     doc = mr.as_dict()
-    doc["__islocal"] = 1
+    doc["__islocal"] = 1   
     return doc
 
 @frappe.whitelist()
