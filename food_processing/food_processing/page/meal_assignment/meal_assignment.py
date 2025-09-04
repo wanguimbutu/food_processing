@@ -309,13 +309,15 @@ def create_combined_shopping_list(meal_plan_names):
                 key = entry.meal_id
                 combined_meal_freq[key] = combined_meal_freq.get(key, 0) + 1
 
+    frappe.logger().info(f"Combined meal frequency: {combined_meal_freq}")
+    frappe.logger().info(f"Total individuals across plans: {total_individuals}")
+
     for meal_id, frequency in combined_meal_freq.items():
         try:
             if not frappe.db.exists("Meals", meal_id):
                 continue
 
             meal_doc = frappe.get_doc("Meals", meal_id)
-
             if not meal_doc.recipes:
                 continue
 
@@ -332,28 +334,31 @@ def create_combined_shopping_list(meal_plan_names):
                         continue
 
                     try:
-                        qty = float(ingredient.get('qty', 0)) or 0
-                        packet_cost = float(ingredient.get('cost', 0)) or 0  # per purchase UOM
+                        qty = float(ingredient.get('qty', 0)) or 0          # stock UOM
+                        packet_cost = float(ingredient.get('cost', 0)) or 0 # per purchase UOM
                     except Exception as e:
                         frappe.logger().warning(f"Invalid qty/cost for {item_code}: {e}")
                         continue
 
-                    total_qty = qty * frequency * total_individuals
-                    conversion_factor = get_item_conversion_factor(item_code)
+                    total_qty = qty * frequency * total_individuals  # stock UOM
 
-                    if conversion_factor and conversion_factor > 0:
-                        purchase_qty = total_qty * conversion_factor
+                    # Normalize conversion factor → stock→purchase
+                    cf_raw = get_item_conversion_factor(item_code)
+                    if cf_raw and cf_raw > 0:
+                        stock_to_purchase = (cf_raw if cf_raw < 1 else 1.0 / cf_raw)
                     else:
-                        purchase_qty = total_qty
+                        stock_to_purchase = 1.0
 
-                    # ✅ Always assume cost is per purchase UOM
-                    total_cost = round(purchase_qty * packet_cost, 2)
+                    purchase_qty = total_qty * stock_to_purchase  # purchase UOM
+                    total_cost = purchase_qty * packet_cost       # raw float
 
                     uom = ingredient.get('unit_of_measure', '')
 
                     if item_code in combined_ingredients:
                         combined_ingredients[item_code]['qty'] += purchase_qty
                         combined_ingredients[item_code]['cost'] += total_cost
+                        if not combined_ingredients[item_code].get('uom') and uom:
+                            combined_ingredients[item_code]['uom'] = uom
                     else:
                         combined_ingredients[item_code] = {
                             'item_code': item_code,
@@ -361,6 +366,12 @@ def create_combined_shopping_list(meal_plan_names):
                             'cost': total_cost,
                             'uom': uom
                         }
+
+                    frappe.msgprint(
+                        f"[COMBINED COST TRACE] {item_code}: stock_qty={total_qty}, cf_raw={cf_raw}, "
+                        f"stock->purchase={stock_to_purchase}, purchase_qty={purchase_qty}, "
+                        f"packet_cost(per purchase)={packet_cost}, total_cost(add)={total_cost}"
+                    )
 
         except Exception as meal_error:
             frappe.logger().error(f"Error processing meal {meal_id}: {meal_error}")
@@ -378,15 +389,14 @@ def create_combined_shopping_list(meal_plan_names):
     shopping_list_doc.customer_group = ", ".join(sorted(group_names))
 
     for item_code, item_data in combined_ingredients.items():
-        final_qty = math.ceil(item_data['qty'])
-        final_cost = round(item_data['cost'], 2)
-
         shopping_list_doc.append("shopping_details", {
             "item_code": item_code,
-            "qty": final_qty,
-            "cost": final_cost,
+            "qty": item_data['qty'],   # raw float
+            "cost": item_data['cost'], # raw float
             "uom": item_data.get('uom', '')
         })
+
+        frappe.logger().info(f"📋 FINAL COMBINED: {item_code} → Qty(purchase)={item_data['qty']}, Cost={item_data['cost']}")
 
     shopping_list_doc.save()
     frappe.msgprint(f"Combined Shopping List created: {shopping_list_doc.name} with {len(combined_ingredients)} unique ingredients")
@@ -652,13 +662,12 @@ def create_shopping_list(monday):
 
 
 import math
-
 def _generate_shopping_list(meal_plan_doc):
     try:
         frappe.msgprint(f"Generating shopping list for: {meal_plan_doc.name}")
         frappe.logger().info(f"[START] Shopping list creation for {meal_plan_doc.name}")
 
-        total_individuals = meal_plan_doc.total_individuals or 1  
+        total_individuals = meal_plan_doc.total_individuals or 1
         frappe.logger().info(f"Total individuals for shopping calculations: {total_individuals}")
 
         existing_list = frappe.get_all("Shopping List", filters={
@@ -686,11 +695,11 @@ def _generate_shopping_list(meal_plan_doc):
             return None
 
         for entry in meal_plan_doc.meal_plan_entry:
-            if entry.meal_id:  
+            if entry.meal_id:
                 unique_meals.add(entry.meal_id)
                 meal_frequency[entry.meal_id] = meal_frequency.get(entry.meal_id, 0) + 1
 
-        MAX_COST = 99999999.99  
+        MAX_COST = 99999999.99
 
         for meal_id in unique_meals:
             try:
@@ -700,7 +709,6 @@ def _generate_shopping_list(meal_plan_doc):
 
                 meal_doc = frappe.get_doc("Meals", meal_id)
                 frequency = meal_frequency[meal_id]
-
                 frappe.logger().info(f"Processing meal {meal_id} (frequency: {frequency})")
 
                 if hasattr(meal_doc, 'recipes') and meal_doc.recipes:
@@ -718,32 +726,32 @@ def _generate_shopping_list(meal_plan_doc):
                                     continue
 
                                 try:
-                                    per_person_qty = float(ingredient.get('qty', 0)) or 0
-                                    packet_cost = float(ingredient.get('cost', 0)) or 0  # per purchase UOM
+                                    per_person_qty = float(ingredient.get('qty', 0)) or 0   # stock UOM
+                                    packet_cost    = float(ingredient.get('cost', 0)) or 0 # per purchase UOM
                                 except Exception as e:
                                     frappe.logger().warning(f"Invalid qty or cost for {item_code}: {e}")
                                     per_person_qty = 0
                                     packet_cost = 0
 
-                                total_qty = per_person_qty * frequency * total_individuals
-                                conversion_factor = get_item_conversion_factor(item_code)
+                                total_qty = per_person_qty * frequency * total_individuals  # stock UOM
 
-                                if conversion_factor and conversion_factor > 0:
-                                    purchase_qty = total_qty * conversion_factor
+                                # Normalize conversion factor → stock→purchase
+                                cf_raw = get_item_conversion_factor(item_code)
+                                if cf_raw and cf_raw > 0:
+                                    stock_to_purchase = (cf_raw if cf_raw < 1 else 1.0 / cf_raw)
                                 else:
-                                    purchase_qty = total_qty
+                                    stock_to_purchase = 1.0
 
-                                # ✅ Always assume cost is per purchase UOM
-                                total_cost = round(purchase_qty * packet_cost, 2)
+                                purchase_qty = total_qty * stock_to_purchase  # purchase UOM
+                                total_cost = purchase_qty * packet_cost       # raw float
 
                                 if total_cost > MAX_COST:
-                                    frappe.logger().warning(f"Cost for {item_code} capped from {total_cost} to {MAX_COST}")
                                     total_cost = MAX_COST
 
                                 uom = ingredient.get('unit_of_measure', '') or ''
 
                                 if item_code in ingredient_totals:
-                                    ingredient_totals[item_code]['qty'] += purchase_qty
+                                    ingredient_totals[item_code]['qty']  += purchase_qty
                                     ingredient_totals[item_code]['cost'] += total_cost
                                 else:
                                     ingredient_totals[item_code] = {
@@ -752,6 +760,12 @@ def _generate_shopping_list(meal_plan_doc):
                                         'cost': total_cost,
                                         'uom': uom
                                     }
+
+                                frappe.msgprint(
+                                    f"[COST TRACE] {item_code}: stock_qty={total_qty}, cf_raw={cf_raw}, "
+                                    f"stock->purchase={stock_to_purchase}, purchase_qty={purchase_qty}, "
+                                    f"packet_cost(per purchase)={packet_cost}, total_cost={total_cost}"
+                                )
 
             except Exception as meal_error:
                 frappe.logger().error(f"Error processing meal {meal_id}: {str(meal_error)}")
@@ -762,20 +776,18 @@ def _generate_shopping_list(meal_plan_doc):
             return None
 
         for item_code, ingredient_data in ingredient_totals.items():
-            final_qty = math.ceil(ingredient_data['qty']) if ingredient_data['qty'] > 0 else 0
-            final_cost = round(ingredient_data['cost'], 2)
-
             shopping_list_doc.append("shopping_details", {
                 "item_code": item_code,
-                "qty": final_qty,
-                "cost": final_cost,
+                "qty": ingredient_data['qty'],     # raw float
+                "cost": ingredient_data['cost'],   # raw float
                 "uom": ingredient_data.get('uom', '')
             })
 
         shopping_list_doc.save()
-        frappe.msgprint(f"Shopping List created/updated: {shopping_list_doc.name} for {total_individuals} people with {len(ingredient_totals)} unique ingredients")
-        frappe.logger().info(f"[DONE] Shopping List: {shopping_list_doc.name} for {total_individuals} people")
-
+        frappe.msgprint(
+            f"Shopping List created/updated: {shopping_list_doc.name} for {total_individuals} people "
+            f"with {len(ingredient_totals)} unique ingredients"
+        )
         return shopping_list_doc.name
 
     except Exception as e:
