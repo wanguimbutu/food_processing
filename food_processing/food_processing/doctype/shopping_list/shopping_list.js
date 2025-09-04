@@ -12,12 +12,9 @@ frappe.ui.form.on('Shopping List', {
                     },
                     callback: function(r) {
                         if (r.message) {
-                            frappe.msgprint({
-                                title: __("Material Request Created"),
-                                message: `Created Material Request <b>${r.message}</b>.`,
-                                indicator: "green"
-                            });
-                            frappe.set_route("Form", "Material Request", r.message);
+                            let doc = r.message;
+                            frappe.model.sync(doc);
+                            frappe.set_route("Form", doc.doctype, doc.name);
                         }
                     }
                 });
