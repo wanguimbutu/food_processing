@@ -45,7 +45,6 @@ def create_material_request(shopping_list_name):
     mr.custom_shopping_list = shopping_list.name
 
     default_warehouse = frappe.db.get_single_value("Stock Settings", "default_warehouse")
-
     if not default_warehouse:
         frappe.throw("Please set a Default Warehouse in Stock Settings.")
 
@@ -56,12 +55,12 @@ def create_material_request(shopping_list_name):
             "qty": math.ceil(float(item.qty)),
             "schedule_date": frappe.utils.nowdate(),
             "warehouse": default_warehouse,
-            "target_warehouse":default_warehouse,
-            
+            "target_warehouse": default_warehouse,
         })
 
-    mr.insert(ignore_permissions=True)
-    return mr.name
+    doc = mr.as_dict()
+    doc["__islocal"] = 1   
+    return doc
 
 @frappe.whitelist()
 def create_daily_meal_issue(meal_plan_name, meal_date=None, warehouse=None):
