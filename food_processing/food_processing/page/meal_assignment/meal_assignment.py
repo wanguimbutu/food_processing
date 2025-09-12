@@ -878,3 +878,15 @@ def get_meal_plan_status(monday):
     except Exception as e:
         frappe.logger().error(f"Error getting meal plan status: {str(e)}")
         return {"exists": False, "status": None, "name": None}
+    
+    
+@frappe.whitelist()
+def get_all_meals_with_categories():
+    meals = frappe.get_all("Meals", fields=["name", "meal_name", "creation"])
+    for m in meals:
+        m["meal_plan_category"] = frappe.get_all(
+            "Meal Plan Category",
+            filters={"parent": m.name},
+            fields=["category"]
+        )
+    return meals
