@@ -358,7 +358,8 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                 filters: [
                     ['subject', '=', 'Meal Plan Allocation'],
                     ['exp_start_date', '<=', sundayStr],
-                    ['exp_end_date', '>=', mondayStr]
+                    ['exp_end_date', '>=', mondayStr],
+                    ['custom_is_meals_at_camp', '=', 1]
                 ],
                 fields: [
                     'name',
@@ -713,6 +714,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                     args: {
                         doctype: 'Meals',
                         fields: ['name', 'meal_name'],
+                        order_by: 'creation desc',
                         limit: 1000
                     },
                     callback: function(r) {
