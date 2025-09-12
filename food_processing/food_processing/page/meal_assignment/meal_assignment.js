@@ -710,38 +710,18 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                 }
 
                 frappe.call({
-                    method: 'frappe.client.get_list',
-                    args: {
-                        doctype: 'Meals',
-                        fields: ['name', 'meal_name'],
-                        order_by: 'creation desc',
-                        limit: 1000
-                    },
-                    callback: function(r) {
-                        const meals = r.message || [];
-                        let mealNames = meals.map(m => m.name);
+                method: "food_processing.food_processing.page.meal_assignment.meal_assignment.get_all_meals_with_categories",
+                callback: function(r) {
+                    allMeals = r.message || [];
 
-                        let fetched = 0;
-                        meals.forEach((meal, idx) => {
-                            frappe.call({
-                                method: 'frappe.client.get',
-                                args: {
-                                    doctype: 'Meals',
-                                    name: meal.name
-                                },
-                                callback: function(docRes) {
-                                    meals[idx].meal_plan_category = docRes.message.meal_plan_category || [];
-                                    fetched++;
-                                    if (fetched === meals.length) {
-                                        allMeals = meals;
-                                        applyMealFilter();
-                                        renderMealsPage(currentMealPage);
-                                    }
-                                }
-                            });
-                        });
-                    }
-                });
+                    // Optional: sort meals by creation (oldest first or newest first)
+                    allMeals.sort((a, b) => new Date(a.creation) - new Date(b.creation));
+
+                    applyMealFilter();
+                    renderMealsPage(currentMealPage);
+                }
+            });
+
             }
         });
     }
