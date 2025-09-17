@@ -37,16 +37,16 @@ def save_meal_assignment(assignments_json):
 
         frappe.log_error("Meal Assignment Debug", f"[DEBUG] Customer = {customer}, Project = {project_name}, Task = {task_name}, People = {total_individuals}")
 
-        # Find or create Meal Plan for the week + customer
+        # 🔑 Find or create Meal Plan for the week + customer + task
         meal_plan = frappe.get_all("Meal Plan", filters={
             "start_date": monday,
-            "customer": customer
+            "customer": customer,
+            "task": task_name
         }, fields=["name", "docstatus"], order_by="`tabMeal Plan`.creation desc")
 
         if meal_plan:
             meal_plan_doc = frappe.get_doc("Meal Plan", meal_plan[0].name)
-            if meal_plan_doc.docstatus == 2:
-                # Make amendment
+            if meal_plan_doc.docstatus == 2:  # Cancelled → create amendment
                 amendment_doc = frappe.copy_doc(meal_plan_doc)
                 amendment_doc.docstatus = 0
                 amendment_doc.amended_from = meal_plan_doc.name
@@ -54,13 +54,13 @@ def save_meal_assignment(assignments_json):
                 amendment_doc.insert()
                 meal_plan_doc = amendment_doc
         else:
-            # Create new Meal Plan
+            # Create new Meal Plan (unique to this task)
             meal_plan_doc = frappe.new_doc("Meal Plan")
             meal_plan_doc.start_date = monday
             meal_plan_doc.end_date = sunday
             meal_plan_doc.customer = customer
             meal_plan_doc.group_name = customer
-            meal_plan_doc.title = f"Meal Plan - {customer} - Week of {monday.strftime('%d %b %Y')}"
+            meal_plan_doc.title = f"Meal Plan - {customer} - {task_name} - Week of {monday.strftime('%d %b %Y')}"
             meal_plan_doc.project = project_name
             meal_plan_doc.task = task_name
 
@@ -106,7 +106,7 @@ def save_meal_assignment(assignments_json):
         meal_plan_doc.save()
         frappe.db.commit()
 
-        frappe.log_error("Meal Assignment Debug", f"[DEBUG] Saved plan: {meal_plan_doc.name} for {customer}")
+        frappe.log_error("Meal Assignment Debug", f"[DEBUG] Saved plan: {meal_plan_doc.name} for {customer} / {task_name}")
         return "OK"
 
     except Exception as e:

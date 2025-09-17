@@ -7,6 +7,7 @@
  "field_order": [
   "meal_plan",
   "group_name",
+  "group",
   "packing_list",
   "meal_plan_link",
   "column_break_zmsu",
@@ -84,12 +85,19 @@
    "fieldname": "customer_group",
    "fieldtype": "Data",
    "label": "Customer Group"
+  },
+  {
+   "fetch_from": "group_name.customer_name",
+   "fieldname": "group",
+   "fieldtype": "Read Only",
+   "label": "Group"
   }
  ],
+ "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-08-08 12:07:35.015383",
+ "modified": "2025-09-04 13:52:47.585371",
  "modified_by": "Administrator",
  "module": "Food Processing",
  "name": "Shopping List",
@@ -159,6 +167,7 @@
    "write": 1
   }
  ],
+ "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []
