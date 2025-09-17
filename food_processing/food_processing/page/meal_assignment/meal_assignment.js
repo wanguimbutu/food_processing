@@ -384,8 +384,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                     const start = frappe.datetime.str_to_obj(task.exp_start_date);
                     const end = frappe.datetime.str_to_obj(task.exp_end_date);
                     
-                    const taskKey = `${customer}_${task.exp_start_date}_${task.exp_end_date}`;
-
+                    const taskKey = task.name;
                     getColorForCustomer(customer, assignedColors);
 
                     if (!customerMap[taskKey]) {
