@@ -1,59 +1,58 @@
 import frappe
 from frappe import _
+from frappe.utils import nowdate
 
 def execute(filters=None):
     columns = get_columns()
-    data = get_data(filters)
+    raw_data = get_raw_data(filters)
+
+    data = []
+    last_date = None
+    last_meal_type = None
+
+    for row in raw_data:
+        if row["date"] != last_date:
+            data.append({
+                "date": row["date"],
+                "meal_type": "",
+                "ingredient": "",
+                "ingredient_name": f"--- {row['date']} ---",
+                "uom": "",
+                "total_qty_required": ""
+            })
+            last_date = row["date"]
+            last_meal_type = None
+
+        if row["meal_type"] != last_meal_type:
+            data.append({
+                "date": "",
+                "meal_type": row["meal_type"],
+                "ingredient": "",
+                "ingredient_name": f"** {row['meal_type']} **",
+                "uom": "",
+                "total_qty_required": ""
+            })
+            last_meal_type = row["meal_type"]
+
+        data.append(row)
+
     return columns, data
 
 
 def get_columns():
     return [
-        {
-            "fieldname": "date",
-            "label": _("Date"),
-            "fieldtype": "Date",
-            "width": 100
-        },
-        {
-            "fieldname": "meal_type",
-            "label": _("Meal Type"),
-            "fieldtype": "Data",
-            "width": 100
-        },
-        {
-            "fieldname": "ingredient",
-            "label": _("Ingredient"),
-            "fieldtype": "Link",
-            "options": "Item",
-            "width": 120
-        },
-        {
-            "fieldname": "ingredient_name",
-            "label": _("Ingredient Name"),
-            "fieldtype": "Data",
-            "width": 150
-        },
-        {
-            "fieldname": "uom",
-            "label": _("UOM"),
-            "fieldtype": "Link",
-            "options": "UOM",
-            "width": 80
-        },
-        {
-            "fieldname": "total_qty_required",
-            "label": _("Total Qty Required"),
-            "fieldtype": "Float",
-            "width": 120,
-            "precision": 3
-        }
+        {"fieldname": "date", "label": _("Date"), "fieldtype": "Date", "width": 100},
+        {"fieldname": "meal_type", "label": _("Meal Type"), "fieldtype": "Data", "width": 100},
+        {"fieldname": "ingredient", "label": _("Ingredient"), "fieldtype": "Link", "options": "Item", "width": 120},
+        {"fieldname": "ingredient_name", "label": _("Ingredient Name"), "fieldtype": "Data", "width": 150},
+        {"fieldname": "uom", "label": _("UOM"), "fieldtype": "Link", "options": "UOM", "width": 80},
+        {"fieldname": "total_qty_required", "label": _("Total Qty Required"), "fieldtype": "Float", "width": 120, "precision": 3}
     ]
 
 
-def get_data(filters):
+def get_raw_data(filters):
     conditions = get_conditions(filters)
-    
+
     query = f"""
         SELECT 
             mpe.date,
@@ -110,19 +109,47 @@ def get_data(filters):
 
 def get_conditions(filters):
     conditions = []
-
     if filters.get("from_date") and filters.get("to_date"):
-        if filters.get("from_date") == filters.get("to_date"):
-            conditions.append("mpe.date = %(from_date)s")
-        else:
-            conditions.append("mpe.date >= %(from_date)s")
-            conditions.append("mpe.date <= %(to_date)s")
+        conditions.append("mpe.date >= %(from_date)s")
+        conditions.append("mpe.date <= %(to_date)s")
     elif filters.get("from_date"):
         conditions.append("mpe.date >= %(from_date)s")
     elif filters.get("to_date"):
         conditions.append("mpe.date <= %(to_date)s")
-
     elif filters.get("date"):
         conditions.append("mpe.date = %(date)s")
-    
+
     return " AND " + " AND ".join(conditions) if conditions else ""
+
+@frappe.whitelist()
+def make_material_request(filters):
+    filters = frappe.parse_json(filters)
+    ingredients = get_raw_data(filters)
+
+    if not ingredients:
+        frappe.throw("No ingredients found for the selected filters")
+
+    warehouse = filters.get("warehouse")
+    if not warehouse:
+        frappe.throw("Please select a warehouse")
+
+    mr = frappe.new_doc("Material Request")
+    mr.material_request_type = "Material Transfer"
+    mr.schedule_date = nowdate()
+
+    for row in ingredients:
+        if not row.get("ingredient"):
+            continue
+
+        mr.append("items", {
+            "item_code": row.get("ingredient"),
+            "qty": row.get("total_qty_required"),
+            "schedule_date": nowdate(),
+            "uom": row.get("uom"),
+            "warehouse": warehouse
+        })
+
+    mr.insert(ignore_permissions=True)
+    frappe.db.commit()
+    return mr.name
+
