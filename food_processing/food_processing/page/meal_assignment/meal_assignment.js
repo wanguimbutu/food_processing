@@ -301,6 +301,63 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
         let mondayStr = formatDate(monday);
         let sundayStr = formatDate(sunday);
 
+        const dietSummarySection = $('<div id="diet-summary-section" class="mb-6"></div>');
+        const calendarSection = $('<div id="calendar-section"></div>');
+        container.append(dietSummarySection);
+        container.append(calendarSection);
+        
+        frappe.call({
+        method: 'food_processing.food_processing.page.meal_assignment.meal_assignment.get_meal_plan_tasks_with_diets',
+        args: { monday: mondayStr },
+        callback: function (r) {
+            const tasks = r.message || [];
+
+            console.log("Meal Plan Tasks with Diets:", tasks);
+
+            if (tasks.length === 0) {
+                console.log("No Meal Plan Allocation tasks found for this week");
+                return;
+            }
+
+            const dietTable = $(`
+                <table class="table table-bordered bg-white shadow mb-4 text-sm w-auto">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th>Customer</th>
+                            <th>Customer Name</th>
+                            <th>Diet Name</th>
+                            <th>Total People</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            `);
+            const dietBody = dietTable.find('tbody');
+            tasks.forEach(task => {
+                (task.dietary_requirements || []).forEach(diet => {
+                    const row = $(`
+                        <tr>
+                            <td>${task.custom_customer || ''}</td>
+                            <td>${task.custom_customer_name || ''}</td>
+                            <td>${diet.diet_name || ''}</td>
+                            <td>${diet.total_people || 0}</td>
+                        </tr>
+                    `);
+                    dietBody.append(row);
+                });
+            });
+
+            if (dietBody.children().length > 0) {
+                dietSummarySection.append('<h4 class="mt-4 mb-2 font-semibold">Dietary Requirements Summary</h4>');
+                dietSummarySection.append(dietTable);
+            } else {
+                console.log("Tasks found but no dietary data present");
+            }
+        },
+        error: function (err) {
+            console.error("Error fetching meal plan tasks with diets:", err);
+        }
+    });
         let nav = $(`
             <div class="mb-4 flex justify-between items-center">
                 <button class="btn btn-secondary" id="prev-week">Previous</button>
