@@ -481,40 +481,6 @@ def create_combined_shopping_list(meal_plan_names):
     return shopping_list_doc.name
 
 
-# Example calculation verification function
-def verify_burger_bun_calculation():
-    """
-    Example verification for burger bun:
-    - 4 meal plans, 167 total people
-    - 0.33 per person (stock UOM)
-    - Cost: 65 per purchase unit
-    """
-    
-    # Manual calculation
-    total_people = 167
-    per_person_stock = 0.33
-    cost_per_purchase_unit = 65
-    
-    # Assuming conversion factor is 1 (stock UOM = purchase UOM)
-    conversion_factor = 1.0
-    
-    total_stock_qty = total_people * per_person_stock  # 167 * 0.33 = 55.11
-    total_purchase_qty = total_stock_qty * conversion_factor  # 55.11 * 1 = 55.11
-    total_cost = total_purchase_qty * cost_per_purchase_unit  # 55.11 * 65 = 3,582.15
-    
-    print(f"Expected calculation:")
-    print(f"Total people: {total_people}")
-    print(f"Per person (stock): {per_person_stock}")
-    print(f"Total stock qty: {total_stock_qty}")
-    print(f"Total purchase qty: {total_purchase_qty}")
-    print(f"Cost per purchase unit: {cost_per_purchase_unit}")
-    print(f"Total cost: {total_cost}")
-    
-    return {
-        'total_stock_qty': total_stock_qty,
-        'total_purchase_qty': total_purchase_qty,
-        'total_cost': total_cost
-    }
 @frappe.whitelist()
 def submit_meal_plan_and_create_shopping_list(monday, combine=False):
     from frappe.utils import getdate
@@ -651,6 +617,65 @@ def get_meal_entries_for_dates(dates_json):
         
     except Exception as e:
         frappe.logger().error(f"Error in get_meal_entries_for_dates: {str(e)}")
+        return []
+
+@frappe.whitelist()
+def get_meal_plan_tasks_with_diets(monday):
+    """
+    Fetch all Meal Plan Allocation tasks for the given week,
+    including dietary requirements from their child table.
+    """
+    try:
+        from datetime import timedelta
+        from frappe.utils import getdate
+
+        monday = getdate(monday)
+        sunday = monday + timedelta(days=6)
+
+        tasks = frappe.get_all(
+            "Task",
+            filters={
+                "subject": "Meal Plan Allocation",
+                "exp_start_date": ["<=", sunday],
+                "exp_end_date": [">=", monday],
+                "custom_is_meals_at_camp": 1
+            },
+            fields=[
+                "name",
+                "project",
+                "custom_customer",
+                "custom_customer_name",
+                "custom_no_of_people",
+                "exp_start_date",
+                "exp_end_date"
+            ],
+            order_by="custom_customer asc"
+        )
+
+        results = []
+
+        for t in tasks:
+            diets = frappe.get_all(
+                "Diet",  
+                filters={"parent": t.name},
+                fields=["diet_name", "total_people"]
+            )
+
+            results.append({
+                "task_name": t.name,
+                "project": t.project,
+                "custom_customer": t.custom_customer,
+                "custom_customer_name": t.custom_customer_name,
+                "custom_no_of_people": t.custom_no_of_people,
+                "exp_start_date": t.exp_start_date,
+                "exp_end_date": t.exp_end_date,
+                "dietary_requirements": diets
+            })
+
+        return results
+
+    except Exception as e:
+        frappe.logger().error(f"Error in get_meal_plan_tasks_with_diets: {str(e)}")
         return []
 
 @frappe.whitelist()
