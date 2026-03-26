@@ -684,42 +684,41 @@ def remove_meal_assignment(date, meal_type, customer, project_key=None):
     try:
         from frappe.utils import getdate
         from datetime import timedelta
-        
+
         date = getdate(date)
         monday = date - timedelta(days=date.weekday())
-        
-        # Find the meal plan for this week
-        meal_plan = frappe.get_all("Meal Plan", filters={
-            "start_date": monday
-        }, fields=["name"])
-        
-        if not meal_plan:
-            return "not_found"
-            
-        meal_plan_doc = frappe.get_doc("Meal Plan", meal_plan[0].name)
-        
         customer = customer or None
         project_key = project_key or None
-        
-        initial_count = len(meal_plan_doc.meal_plan_entry)
-        meal_plan_doc.meal_plan_entry = [
-            entry for entry in meal_plan_doc.meal_plan_entry 
-            if not (entry.date == date and 
-                    entry.meal_type == meal_type and 
-                    entry.customer == customer and
-                    entry.get('project_key') == project_key)  
-        ]
-        
-        final_count = len(meal_plan_doc.meal_plan_entry)
-        
-        if initial_count == final_count:
+
+        # Fetch all meal plans for the week — plans are per customer/task so
+        # filtering by start_date alone could return the wrong plan first.
+        meal_plans = frappe.get_all("Meal Plan", filters={
+            "start_date": monday,
+            "customer": customer
+        }, fields=["name"])
+
+        if not meal_plans:
             return "not_found"
-        
-        meal_plan_doc.save()
-        frappe.db.commit()
-        
-        return "OK"
-        
+
+        for plan in meal_plans:
+            meal_plan_doc = frappe.get_doc("Meal Plan", plan.name)
+
+            initial_count = len(meal_plan_doc.meal_plan_entry)
+            meal_plan_doc.meal_plan_entry = [
+                entry for entry in meal_plan_doc.meal_plan_entry
+                if not (entry.date == date and
+                        entry.meal_type == meal_type and
+                        entry.customer == customer and
+                        entry.get('project_key') == project_key)
+            ]
+
+            if len(meal_plan_doc.meal_plan_entry) < initial_count:
+                meal_plan_doc.save()
+                frappe.db.commit()
+                return "OK"
+
+        return "not_found"
+
     except Exception as e:
         frappe.logger().error(f"Error in remove_meal_assignment: {str(e)}")
         return "error"
