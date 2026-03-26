@@ -794,8 +794,14 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
             margin: 0.2,
             filename: `Meal_Calendar_${formatDate(currentMonday)}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2 },
-            jsPDF: { unit: 'in', format: 'a2', orientation: 'landscape' }
+            html2canvas: {
+                scale: 2,
+                scrollX: 0,
+                scrollY: 0,
+                width: element.scrollWidth,
+                windowWidth: element.scrollWidth
+            },
+            jsPDF: { unit: 'in', format: 'a1', orientation: 'landscape' }
         };
 
         html2pdf().set(options).from(element).save();
