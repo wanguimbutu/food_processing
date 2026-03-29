@@ -425,7 +425,8 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                     'custom_customer_name',
                     'custom_no_of_people',
                     'exp_start_date',
-                    'exp_end_date'
+                    'exp_end_date',
+                    'custom_reservation'
                 ],
                 limit: 1000
             },
@@ -453,7 +454,8 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                             exp_start_date: task.exp_start_date,
                             exp_end_date: task.exp_end_date,
                             task_name: task.name,
-                            project: task.project
+                            project: task.project,
+                            reservation: task.custom_reservation || ''
                         };
                     }
 
@@ -464,7 +466,29 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                         }
                     }
                 });
-                
+
+                const reservationNames = [...new Set(
+                    Object.values(customerMap).map(e => e.reservation).filter(Boolean)
+                )];
+
+                let allMeals = [];
+                let filteredMeals = [];
+                let selectedMeal = null;
+                let currentMealPage = 1;
+                let mealsPerPage = 5;
+                let selectedCategory = null;
+                const mealContainer = $('<div class="mt-6"></div>');
+
+                function renderCalendar(mealSchedules) {
+                    // Apply per-meal selections from the linked reservation
+                    Object.keys(customerMap).forEach(k => {
+                        const entry = customerMap[k];
+                        const sched = entry.reservation ? (mealSchedules[entry.reservation] || {}) : {};
+                        Object.keys(entry.days).forEach(dk => {
+                            if (sched[dk]) entry.days[dk] = sched[dk];
+                        });
+                    });
+
                 const table = $('<table class="table table-bordered table-sm w-max text-center"></table>');
 
                 const thead = $('<thead></thead>');
@@ -509,11 +533,10 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                         const d = new Date(monday);
                         d.setDate(monday.getDate() + i);
                         const key = formatDate(d);
-                        const highlight = entry.days[key] === true;
+                        const dayData = entry.days[key];
 
                         const start = new Date(entry.exp_start_date);
                         const end = new Date(entry.exp_end_date);
-
                         const isActive = d.getTime() >= start.getTime() && d.getTime() <= end.getTime();
 
                         for (let j = 0; j < 3; j++) {
@@ -522,10 +545,13 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                             cell.attr('data-date', key);
                             cell.attr('data-meal-type', mealType);
                             cell.attr('data-customer', customer);
-                            cell.attr('data-project-key', taskKey); 
+                            cell.attr('data-project-key', taskKey);
                             cell.attr('data-task-name', entry.task_name || '');
                             cell.attr('data-project-name', entry.project_name || '');
-                            if (highlight || isActive) {
+                            const shouldHighlight = typeof dayData === 'object'
+                                ? !!dayData[mealType]
+                                : (dayData === true || isActive);
+                            if (shouldHighlight) {
                                 cell.css('background-color', color);
                                 cell.addClass('droppable-cell');
 
@@ -641,19 +667,19 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
 
                 container.append(scrollContainer);
 
-                // Fetch and render existing meal assignments after the table is created
                 fetchAndRenderMealAssignments(monday);
-
-                let mealsPerPage = 5;
-                let currentMealPage = 1;
-                let allMeals = [];
-                let filteredMeals = [];
-                let selectedCategory = null;
-
-                const mealContainer = $('<div class="mt-6"></div>');
                 container.append(mealContainer);
+                } // end renderCalendar
 
-                let selectedMeal = null;
+                if (reservationNames.length) {
+                    frappe.call({
+                        method: 'food_processing.food_processing.page.meal_assignment.meal_assignment.get_meal_schedules',
+                        args: { reservation_names: JSON.stringify(reservationNames) },
+                        callback: function(sr) { renderCalendar(sr.message || {}); }
+                    });
+                } else {
+                    renderCalendar({});
+                }
 
                 function renderMealCards(meals) {
                     const grid = $('<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 mt-4"></div>');
@@ -794,8 +820,14 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
             margin: 0.2,
             filename: `Meal_Calendar_${formatDate(currentMonday)}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2 },
-            jsPDF: { unit: 'in', format: 'a2', orientation: 'landscape' }
+            html2canvas: {
+                scale: 2,
+                scrollX: 0,
+                scrollY: 0,
+                width: element.scrollWidth,
+                windowWidth: element.scrollWidth
+            },
+            jsPDF: { unit: 'in', format: 'a1', orientation: 'landscape' }
         };
 
         html2pdf().set(options).from(element).save();

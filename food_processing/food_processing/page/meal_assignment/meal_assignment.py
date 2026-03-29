@@ -679,6 +679,38 @@ def get_meal_plan_tasks_with_diets(monday):
         return []
 
 @frappe.whitelist()
+def get_meal_schedules(reservation_names):
+    """Return per-day meal selections for a list of reservations.
+    Result: { reservation_name: { "YYYY-MM-DD": { Breakfast: bool, Lunch: bool, Dinner: bool } } }
+    """
+    import json
+    names = json.loads(reservation_names) if isinstance(reservation_names, str) else reservation_names
+    if not names:
+        return {}
+
+    rows = frappe.get_all(
+        "Meal Details",
+        filters={"parent": ["in", names], "parenttype": "Reservation"},
+        fields=["parent", "date", "breakfast", "lunch", "dinner"]
+    )
+
+    schedules = {}
+    for row in rows:
+        if not row.date:
+            continue
+        res = row.parent
+        date_str = str(row.date)
+        if res not in schedules:
+            schedules[res] = {}
+        schedules[res][date_str] = {
+            "Breakfast": bool(row.breakfast),
+            "Lunch": bool(row.lunch),
+            "Dinner": bool(row.dinner)
+        }
+
+    return schedules
+
+@frappe.whitelist()
 def remove_meal_assignment(date, meal_type, customer, project_key=None):
     """Remove a meal assignment"""
     try:
