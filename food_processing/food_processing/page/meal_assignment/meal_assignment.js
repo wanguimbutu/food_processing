@@ -809,12 +809,15 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
     }
 
     $(document).on('click', '#download-pdf', function () {
-        const element = document.querySelector('#meal-calendar');
+        const calendarDiv = document.querySelector('#meal-calendar');
+        const element = calendarDiv && calendarDiv.querySelector('table') || calendarDiv;
 
         if (!element) {
             frappe.msgprint("Calendar content not found!");
             return;
         }
+
+        const tableWidth = element.offsetWidth;
 
         const options = {
             margin: 0.2,
@@ -824,8 +827,8 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                 scale: 2,
                 scrollX: 0,
                 scrollY: 0,
-                width: element.scrollWidth,
-                windowWidth: element.scrollWidth
+                width: tableWidth,
+                windowWidth: tableWidth
             },
             jsPDF: { unit: 'in', format: 'a1', orientation: 'landscape' }
         };
