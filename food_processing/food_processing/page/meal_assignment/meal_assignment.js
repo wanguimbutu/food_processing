@@ -248,7 +248,17 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
     }
 
     function formatDate(date) {
-        return frappe.datetime.obj_to_str(date);
+        // Always produce YYYY-MM-DD in local time to avoid UTC shift issues
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    function parseLocalDate(dateStr) {
+        // Parse "YYYY-MM-DD" as local midnight, not UTC midnight
+        const [y, m, d] = dateStr.split('-').map(Number);
+        return new Date(y, m - 1, d);
     }
 
     function shortDateDisplay(date) {
@@ -277,8 +287,8 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
         sunday.setDate(monday.getDate() + 6);
     
         taskData.forEach(entry => {
-            const start = new Date(entry.exp_start_date);
-            const end = new Date(entry.exp_end_date);
+            const start = parseLocalDate(entry.exp_start_date);
+            const end = parseLocalDate(entry.exp_end_date);
     
             if (end >= monday && start <= sunday) {
                 total += parseInt(entry.custom_no_of_people || 0);
@@ -419,8 +429,8 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                 tasks.forEach(task => {
                     const customer = task.custom_customer;
                     const no_of_people = task.custom_no_of_people;
-                    const start = frappe.datetime.str_to_obj(task.exp_start_date);
-                    const end = frappe.datetime.str_to_obj(task.exp_end_date);
+                    const start = parseLocalDate(task.exp_start_date);
+                    const end = parseLocalDate(task.exp_end_date);
 
                     const taskKey = `${customer}_${task.task_name}_${task.exp_start_date}_${task.exp_end_date}`;
                     getColorForCustomer(customer, assignedColors);
@@ -440,8 +450,8 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                     }
 
                     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                        let key = formatDate(new Date(d));
-                        if (new Date(key) >= monday && new Date(key) <= sunday) {
+                        let key = formatDate(d);
+                        if (parseLocalDate(key) >= monday && parseLocalDate(key) <= sunday) {
                             customerMap[taskKey].days[key] = true;
                         }
                     }
@@ -515,8 +525,8 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                         const key = formatDate(d);
                         const dayData = entry.days[key];
 
-                        const start = new Date(entry.exp_start_date);
-                        const end = new Date(entry.exp_end_date);
+                        const start = parseLocalDate(entry.exp_start_date);
+                        const end = parseLocalDate(entry.exp_end_date);
                         const isActive = d.getTime() >= start.getTime() && d.getTime() <= end.getTime();
 
                         for (let j = 0; j < 3; j++) {
