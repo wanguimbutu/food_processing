@@ -299,7 +299,6 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
         sunday.setDate(monday.getDate() + 6);
 
         let mondayStr = formatDate(monday);
-        let sundayStr = formatDate(sunday);
 
         const dietSummarySection = $('<div id="diet-summary-section" class="mb-6"></div>');
         const calendarSection = $('<div id="calendar-section"></div>');
@@ -409,27 +408,8 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
         });
 
         frappe.call({
-            method: 'frappe.client.get_list',
-            args: {
-                doctype: 'Task',
-                filters: [
-                    ['subject', '=', 'Meal Plan Allocation'],
-                    ['exp_start_date', '<=', sundayStr],
-                    ['exp_end_date', '>=', mondayStr],
-                    ['custom_is_meals_at_camp', '=', 1]
-                ],
-                fields: [
-                    'name',
-                    'project',
-                    'custom_customer',
-                    'custom_customer_name',
-                    'custom_no_of_people',
-                    'exp_start_date',
-                    'exp_end_date',
-                    'custom_reservation'
-                ],
-                limit: 1000
-            },
+            method: 'food_processing.food_processing.page.meal_assignment.meal_assignment.get_meal_plan_tasks_with_diets',
+            args: { monday: mondayStr },
             callback: function(r) {
                 const tasks = r.message || [];
                 const customerMap = {};
@@ -441,8 +421,8 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                     const no_of_people = task.custom_no_of_people;
                     const start = frappe.datetime.str_to_obj(task.exp_start_date);
                     const end = frappe.datetime.str_to_obj(task.exp_end_date);
-                    
-                    const taskKey = `${customer}_${task.name}_${task.exp_start_date}_${task.exp_end_date}`;
+
+                    const taskKey = `${customer}_${task.task_name}_${task.exp_start_date}_${task.exp_end_date}`;
                     getColorForCustomer(customer, assignedColors);
 
                     if (!customerMap[taskKey]) {
@@ -453,7 +433,7 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                             days: {},
                             exp_start_date: task.exp_start_date,
                             exp_end_date: task.exp_end_date,
-                            task_name: task.name,
+                            task_name: task.task_name,
                             project: task.project,
                             reservation: task.custom_reservation || ''
                         };

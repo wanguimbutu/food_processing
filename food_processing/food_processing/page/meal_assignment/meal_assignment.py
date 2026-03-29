@@ -652,11 +652,35 @@ def get_meal_plan_tasks_with_diets(monday):
             order_by="custom_customer asc"
         )
 
+        # Build a project → reservation map via Project.sales_order → Sales Order.custom_reservation
+        project_names = list({t.project for t in tasks if t.project})
+        project_to_reservation = {}
+        if project_names:
+            projects = frappe.get_all(
+                "Project",
+                filters={"name": ["in", project_names]},
+                fields=["name", "sales_order"]
+            )
+            so_names = [p.sales_order for p in projects if p.sales_order]
+            so_to_reservation = {}
+            if so_names:
+                sales_orders = frappe.get_all(
+                    "Sales Order",
+                    filters={"name": ["in", so_names]},
+                    fields=["name", "custom_reservation"]
+                )
+                for so in sales_orders:
+                    if so.custom_reservation:
+                        so_to_reservation[so.name] = so.custom_reservation
+            for p in projects:
+                if p.sales_order and p.sales_order in so_to_reservation:
+                    project_to_reservation[p.name] = so_to_reservation[p.sales_order]
+
         results = []
 
         for t in tasks:
             diets = frappe.get_all(
-                "Diet",  
+                "Diet",
                 filters={"parent": t.name},
                 fields=["diet_name", "total_people"]
             )
@@ -669,7 +693,8 @@ def get_meal_plan_tasks_with_diets(monday):
                 "custom_no_of_people": t.custom_no_of_people,
                 "exp_start_date": t.exp_start_date,
                 "exp_end_date": t.exp_end_date,
-                "dietary_requirements": diets
+                "dietary_requirements": diets,
+                "custom_reservation": project_to_reservation.get(t.project, "")
             })
 
         return results
