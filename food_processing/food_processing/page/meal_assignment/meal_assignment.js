@@ -470,12 +470,19 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                 const mealContainer = $('<div class="mt-6"></div>');
 
                 function renderCalendar(mealSchedules) {
+                    console.log("renderCalendar: reservations in map:", Object.values(customerMap).map(e => e.reservation));
+                    console.log("renderCalendar: mealSchedules keys:", Object.keys(mealSchedules));
                     // Apply per-meal selections from the linked reservation
                     Object.keys(customerMap).forEach(k => {
                         const entry = customerMap[k];
                         const sched = entry.reservation ? (mealSchedules[entry.reservation] || {}) : {};
                         Object.keys(entry.days).forEach(dk => {
-                            if (sched[dk]) entry.days[dk] = sched[dk];
+                            const daySchedule = sched[dk];
+                            // Only replace with schedule object if at least one meal is selected
+                            // otherwise keep true so isActive fallback still highlights the day
+                            if (daySchedule && (daySchedule.Breakfast || daySchedule.Lunch || daySchedule.Dinner)) {
+                                entry.days[dk] = daySchedule;
+                            }
                         });
                     });
 
