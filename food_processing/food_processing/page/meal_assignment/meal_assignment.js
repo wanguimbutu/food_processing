@@ -535,6 +535,9 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                         const start = parseLocalDate(entry.exp_start_date);
                         const end = parseLocalDate(entry.exp_end_date);
                         const isActive = d.getTime() >= start.getTime() && d.getTime() <= end.getTime();
+                        if (isActive || dayData) {
+                            console.log(`[CELL] ${customer} | ${key} | dayData=${JSON.stringify(dayData)} | isActive=${isActive} | start=${entry.exp_start_date} | end=${entry.exp_end_date}`);
+                        }
 
                         for (let j = 0; j < 3; j++) {
                             const mealType = meals[j];
