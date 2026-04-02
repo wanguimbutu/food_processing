@@ -831,9 +831,9 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
 
         let html = `
             <div style="font-family: Arial, sans-serif; color: #1a1a1a; padding: 16px 20px;">
-                <div style="text-align:center; border-bottom: 2px solid #2c3e50; padding-bottom: 8px; margin-bottom: 20px;">
-                    <div style="font-size: 20px; font-weight: bold; letter-spacing: 1px;">WEEKLY MEAL PLAN</div>
-                    <div style="font-size: 13px; color: #555; margin-top: 4px;">Week of ${weekLabel}</div>
+                <div style="text-align:center; border-bottom: 2px solid #2c3e50; padding-bottom: 10px; margin-bottom: 24px;">
+                    <div style="font-size: 26px; font-weight: bold; letter-spacing: 1px;">WEEKLY MEAL PLAN</div>
+                    <div style="font-size: 16px; color: #555; margin-top: 6px;">Week of ${weekLabel}</div>
                 </div>
         `;
 
@@ -875,18 +875,18 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
             const userDate = frappe.datetime.str_to_user(dateStr);
 
             html += `
-                <div style="margin-bottom: 22px; page-break-inside: avoid;">
-                    <div style="background: #2c3e50; color: #fff; padding: 7px 12px; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">
+                <div style="margin-bottom: 28px; page-break-inside: avoid;">
+                    <div style="background: #2c3e50; color: #fff; padding: 10px 14px; font-size: 17px; font-weight: bold; letter-spacing: 0.5px;">
                         ${fullDayNames[idx].toUpperCase()} &nbsp;·&nbsp; ${userDate}
                     </div>
-                    <table style="width:100%; border-collapse:collapse; font-size:11px;">
+                    <table style="width:100%; border-collapse:collapse; font-size:14px;">
                         <thead>
                             <tr style="background:#ecf0f1;">
-                                <th style="border:1px solid #bdc3c7; padding:5px 8px; text-align:left; width:30%;">Customer</th>
-                                <th style="border:1px solid #bdc3c7; padding:5px 8px; text-align:center; width:7%;">Pax</th>
-                                <th style="border:1px solid #bdc3c7; padding:5px 8px; text-align:left; width:21%;">Breakfast</th>
-                                <th style="border:1px solid #bdc3c7; padding:5px 8px; text-align:left; width:21%;">Lunch</th>
-                                <th style="border:1px solid #bdc3c7; padding:5px 8px; text-align:left; width:21%;">Dinner</th>
+                                <th style="border:1px solid #bdc3c7; padding:8px 10px; text-align:left; width:30%;">Customer</th>
+                                <th style="border:1px solid #bdc3c7; padding:8px 10px; text-align:center; width:7%;">Pax</th>
+                                <th style="border:1px solid #bdc3c7; padding:8px 10px; text-align:left; width:21%;">Breakfast</th>
+                                <th style="border:1px solid #bdc3c7; padding:8px 10px; text-align:left; width:21%;">Lunch</th>
+                                <th style="border:1px solid #bdc3c7; padding:8px 10px; text-align:left; width:21%;">Dinner</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -896,15 +896,15 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                 const bg = i % 2 === 0 ? '#ffffff' : '#f9f9f9';
 
                 function mealCell(show, name) {
-                    if (!show) return `<td style="border:1px solid #bdc3c7; padding:5px 8px; background:#f0f0f0; color:#aaa; text-align:center;">–</td>`;
-                    if (name) return `<td style="border:1px solid #bdc3c7; padding:5px 8px; background:#eafaf1; font-weight:600;">${name}</td>`;
-                    return `<td style="border:1px solid #bdc3c7; padding:5px 8px; color:#e74c3c; font-style:italic;">Not assigned</td>`;
+                    if (!show) return `<td style="border:1px solid #bdc3c7; padding:8px 10px; background:#f0f0f0; color:#aaa; text-align:center;">–</td>`;
+                    if (name) return `<td style="border:1px solid #bdc3c7; padding:8px 10px; background:#eafaf1; font-weight:600;">${name}</td>`;
+                    return `<td style="border:1px solid #bdc3c7; padding:8px 10px; color:#e74c3c; font-style:italic;">Not assigned</td>`;
                 }
 
                 html += `
                     <tr style="background:${bg};">
-                        <td style="border:1px solid #bdc3c7; padding:5px 8px; font-weight:500;">${row.customer_name}</td>
-                        <td style="border:1px solid #bdc3c7; padding:5px 8px; text-align:center; font-weight:bold;">${row.no_of_people}</td>
+                        <td style="border:1px solid #bdc3c7; padding:8px 10px; font-weight:500;">${row.customer_name}</td>
+                        <td style="border:1px solid #bdc3c7; padding:8px 10px; text-align:center; font-weight:bold;">${row.no_of_people}</td>
                         ${mealCell(row.showBreakfast, row.breakfast)}
                         ${mealCell(row.showLunch, row.lunch)}
                         ${mealCell(row.showDinner, row.dinner)}
@@ -915,10 +915,10 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
             html += `
                         </tbody>
                         <tfoot>
-                            <tr style="background:#dfe6e9; font-weight:bold; font-size:11px;">
-                                <td style="border:1px solid #bdc3c7; padding:5px 8px;">Total</td>
-                                <td style="border:1px solid #bdc3c7; padding:5px 8px; text-align:center;">${totalPeople}</td>
-                                <td colspan="3" style="border:1px solid #bdc3c7; padding:5px 8px;"></td>
+                            <tr style="background:#dfe6e9; font-weight:bold; font-size:14px;">
+                                <td style="border:1px solid #bdc3c7; padding:8px 10px;">Total</td>
+                                <td style="border:1px solid #bdc3c7; padding:8px 10px; text-align:center;">${totalPeople}</td>
+                                <td colspan="3" style="border:1px solid #bdc3c7; padding:8px 10px;"></td>
                             </tr>
                         </tfoot>
                     </table>
