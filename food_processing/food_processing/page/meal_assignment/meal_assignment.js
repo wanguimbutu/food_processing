@@ -859,13 +859,19 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                 const showLunch     = daySchedule ? !!daySchedule.Lunch     : true;
                 const showDinner    = daySchedule ? !!daySchedule.Dinner    : true;
 
+                const breakfast = assigned['Breakfast'] || '';
+                const lunch     = assigned['Lunch']     || '';
+                const dinner    = assigned['Dinner']    || '';
+
+                // Only include rows where at least one meal has been assigned
+                const hasAnyMeal = (showBreakfast && breakfast) || (showLunch && lunch) || (showDinner && dinner);
+                if (!hasAnyMeal) return;
+
                 activeRows.push({
                     customer_name: task.custom_customer_name || task.custom_customer,
                     no_of_people: task.custom_no_of_people || 0,
                     showBreakfast, showLunch, showDinner,
-                    breakfast: assigned['Breakfast'] || '',
-                    lunch:     assigned['Lunch']     || '',
-                    dinner:    assigned['Dinner']    || ''
+                    breakfast, lunch, dinner
                 });
             });
 
