@@ -451,9 +451,13 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
 
                     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
                         let key = formatDate(d);
-                        if (parseLocalDate(key) >= monday && parseLocalDate(key) <= sunday) {
+                        const inRange = key >= formatDate(monday) && key <= formatDate(sunday);
+                        if (inRange) {
                             customerMap[taskKey].days[key] = true;
                         }
+                    }
+                    if (Object.keys(customerMap[taskKey].days).length === 0) {
+                        console.warn(`[DAYS EMPTY] ${customer} | task ${task.task_name} | start=${task.exp_start_date} end=${task.exp_end_date} | week ${formatDate(monday)}-${formatDate(sunday)}`);
                     }
                 });
 
@@ -535,9 +539,6 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                         const start = parseLocalDate(entry.exp_start_date);
                         const end = parseLocalDate(entry.exp_end_date);
                         const isActive = d.getTime() >= start.getTime() && d.getTime() <= end.getTime();
-                        if (isActive || dayData) {
-                            console.log(`[CELL] ${customer} | ${key} | dayData=${JSON.stringify(dayData)} | isActive=${isActive} | start=${entry.exp_start_date} | end=${entry.exp_end_date}`);
-                        }
 
                         for (let j = 0; j < 3; j++) {
                             const mealType = meals[j];
@@ -548,9 +549,12 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
                             cell.attr('data-project-key', taskKey);
                             cell.attr('data-task-name', entry.task_name || '');
                             cell.attr('data-project-name', entry.project_name || '');
-                            const shouldHighlight = typeof dayData === 'object'
+                            const shouldHighlight = dayData && typeof dayData === 'object'
                                 ? !!dayData[mealType]
                                 : (dayData === true || isActive);
+                            if (isActive || dayData) {
+                                console.log(`[CELL] ${customer} | ${key} | meal=${mealType} | dayData=${JSON.stringify(dayData)} | isActive=${isActive} | shouldHighlight=${shouldHighlight}`);
+                            }
                             if (shouldHighlight) {
                                 cell.css('background-color', color);
                                 cell.addClass('droppable-cell');
@@ -808,32 +812,192 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
         });
     }
 
-    $(document).on('click', '#download-pdf', function () {
-        const calendarDiv = document.querySelector('#meal-calendar');
-        const element = calendarDiv && calendarDiv.querySelector('table') || calendarDiv;
+    function buildAndDownloadPDF(tasks, mealEntries, mealSchedules, dates) {
+        const fullDayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-        if (!element) {
-            frappe.msgprint("Calendar content not found!");
-            return;
+        // meal lookup: date -> customer -> mealType -> mealName
+        const mealLookup = {};
+        mealEntries.forEach(e => {
+            const d = typeof e.date === 'string' ? e.date.split(' ')[0] : String(e.date);
+            if (!mealLookup[d]) mealLookup[d] = {};
+            if (!mealLookup[d][e.customer]) mealLookup[d][e.customer] = {};
+            mealLookup[d][e.customer][e.meal_type] = e.meal_name;
+        });
+
+        // reservation schedule lookup: reservationName -> date -> {Breakfast, Lunch, Dinner}
+        // mealSchedules already keyed by reservation name
+
+        const weekLabel = frappe.datetime.str_to_user(formatDate(currentMonday));
+
+        let html = `
+            <div style="font-family: Arial, sans-serif; color: #1a1a1a; padding: 16px 20px;">
+                <div style="text-align:center; border-bottom: 2px solid #2c3e50; padding-bottom: 8px; margin-bottom: 20px;">
+                    <div style="font-size: 20px; font-weight: bold; letter-spacing: 1px;">WEEKLY MEAL PLAN</div>
+                    <div style="font-size: 13px; color: #555; margin-top: 4px;">Week of ${weekLabel}</div>
+                </div>
+        `;
+
+        dates.forEach((dateStr, idx) => {
+            // Find customers active on this day (task date range covers this date)
+            const dayDate = parseLocalDate(dateStr);
+            const activeRows = [];
+
+            tasks.forEach(task => {
+                const start = parseLocalDate(task.exp_start_date);
+                const end = parseLocalDate(task.exp_end_date);
+                if (dayDate < start || dayDate > end) return;
+
+                const reservation = task.custom_reservation || '';
+                const sched = reservation ? (mealSchedules[reservation] || {}) : {};
+                const daySchedule = sched[dateStr]; // {Breakfast, Lunch, Dinner} or undefined
+
+                const assigned = (mealLookup[dateStr] || {})[task.custom_customer] || {};
+
+                // Decide which meals to show
+                // If daySchedule exists and has at least one true, use it; else show all 3
+                const showBreakfast = daySchedule ? !!daySchedule.Breakfast : true;
+                const showLunch     = daySchedule ? !!daySchedule.Lunch     : true;
+                const showDinner    = daySchedule ? !!daySchedule.Dinner    : true;
+
+                activeRows.push({
+                    customer_name: task.custom_customer_name || task.custom_customer,
+                    no_of_people: task.custom_no_of_people || 0,
+                    showBreakfast, showLunch, showDinner,
+                    breakfast: assigned['Breakfast'] || '',
+                    lunch:     assigned['Lunch']     || '',
+                    dinner:    assigned['Dinner']    || ''
+                });
+            });
+
+            if (activeRows.length === 0) return;
+
+            const totalPeople = activeRows.reduce((s, r) => s + parseInt(r.no_of_people || 0), 0);
+            const userDate = frappe.datetime.str_to_user(dateStr);
+
+            html += `
+                <div style="margin-bottom: 22px; page-break-inside: avoid;">
+                    <div style="background: #2c3e50; color: #fff; padding: 7px 12px; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">
+                        ${fullDayNames[idx].toUpperCase()} &nbsp;·&nbsp; ${userDate}
+                    </div>
+                    <table style="width:100%; border-collapse:collapse; font-size:11px;">
+                        <thead>
+                            <tr style="background:#ecf0f1;">
+                                <th style="border:1px solid #bdc3c7; padding:5px 8px; text-align:left; width:30%;">Customer</th>
+                                <th style="border:1px solid #bdc3c7; padding:5px 8px; text-align:center; width:7%;">Pax</th>
+                                <th style="border:1px solid #bdc3c7; padding:5px 8px; text-align:left; width:21%;">Breakfast</th>
+                                <th style="border:1px solid #bdc3c7; padding:5px 8px; text-align:left; width:21%;">Lunch</th>
+                                <th style="border:1px solid #bdc3c7; padding:5px 8px; text-align:left; width:21%;">Dinner</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            activeRows.forEach((row, i) => {
+                const bg = i % 2 === 0 ? '#ffffff' : '#f9f9f9';
+
+                function mealCell(show, name) {
+                    if (!show) return `<td style="border:1px solid #bdc3c7; padding:5px 8px; background:#f0f0f0; color:#aaa; text-align:center;">–</td>`;
+                    if (name) return `<td style="border:1px solid #bdc3c7; padding:5px 8px; background:#eafaf1; font-weight:600;">${name}</td>`;
+                    return `<td style="border:1px solid #bdc3c7; padding:5px 8px; color:#e74c3c; font-style:italic;">Not assigned</td>`;
+                }
+
+                html += `
+                    <tr style="background:${bg};">
+                        <td style="border:1px solid #bdc3c7; padding:5px 8px; font-weight:500;">${row.customer_name}</td>
+                        <td style="border:1px solid #bdc3c7; padding:5px 8px; text-align:center; font-weight:bold;">${row.no_of_people}</td>
+                        ${mealCell(row.showBreakfast, row.breakfast)}
+                        ${mealCell(row.showLunch, row.lunch)}
+                        ${mealCell(row.showDinner, row.dinner)}
+                    </tr>
+                `;
+            });
+
+            html += `
+                        </tbody>
+                        <tfoot>
+                            <tr style="background:#dfe6e9; font-weight:bold; font-size:11px;">
+                                <td style="border:1px solid #bdc3c7; padding:5px 8px;">Total</td>
+                                <td style="border:1px solid #bdc3c7; padding:5px 8px; text-align:center;">${totalPeople}</td>
+                                <td colspan="3" style="border:1px solid #bdc3c7; padding:5px 8px;"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            `;
+        });
+
+        html += `<div style="margin-top:12px; font-size:9px; color:#999; text-align:right;">
+            Generated ${frappe.datetime.str_to_user(frappe.datetime.nowdate())}
+        </div></div>`;
+
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'position:fixed; left:-9999px; top:0; width:750px;';
+        wrapper.innerHTML = html;
+        document.body.appendChild(wrapper);
+
+        html2pdf().set({
+            margin: [0.35, 0.35, 0.35, 0.35],
+            filename: `Meal_Plan_${formatDate(currentMonday)}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true, logging: false },
+            jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+        }).from(wrapper).save().then(() => {
+            document.body.removeChild(wrapper);
+        });
+    }
+
+    $(document).on('click', '#download-pdf', function () {
+        const mondayStr = formatDate(currentMonday);
+        const dates = [];
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(currentMonday);
+            d.setDate(currentMonday.getDate() + i);
+            dates.push(formatDate(d));
         }
 
-        const tableWidth = element.offsetWidth;
+        const $btn = $('#download-pdf').prop('disabled', true).text('Generating...');
 
-        const options = {
-            margin: 0.2,
-            filename: `Meal_Calendar_${formatDate(currentMonday)}.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: {
-                scale: 2,
-                scrollX: 0,
-                scrollY: 0,
-                width: tableWidth,
-                windowWidth: tableWidth
-            },
-            jsPDF: { unit: 'in', format: 'a1', orientation: 'landscape' }
-        };
+        let pending = 3;
+        let tasksData = [], entriesData = [], schedulesData = {};
 
-        html2pdf().set(options).from(element).save();
+        function checkAndBuild() {
+            pending--;
+            if (pending > 0) return;
+            $btn.prop('disabled', false).text('Download PDF');
+            buildAndDownloadPDF(tasksData, entriesData, schedulesData, dates);
+        }
+
+        frappe.call({
+            method: 'food_processing.food_processing.page.meal_assignment.meal_assignment.get_meal_plan_tasks_with_diets',
+            args: { monday: mondayStr },
+            callback: function(r) {
+                tasksData = r.message || [];
+                // Once tasks are loaded, fetch schedules using their reservations
+                const reservationNames = [...new Set(tasksData.map(t => t.custom_reservation).filter(Boolean))];
+                if (reservationNames.length) {
+                    frappe.call({
+                        method: 'food_processing.food_processing.page.meal_assignment.meal_assignment.get_meal_schedules',
+                        args: { reservation_names: JSON.stringify(reservationNames) },
+                        callback: function(sr) {
+                            schedulesData = sr.message || {};
+                            checkAndBuild();
+                        }
+                    });
+                } else {
+                    checkAndBuild();
+                }
+                checkAndBuild(); // count tasks call as done
+            }
+        });
+
+        frappe.call({
+            method: 'food_processing.food_processing.page.meal_assignment.meal_assignment.get_meal_entries_for_dates',
+            args: { dates_json: JSON.stringify(dates) },
+            callback: function(r) {
+                entriesData = r.message || [];
+                checkAndBuild();
+            }
+        });
     });
 
     // Initialize the page
