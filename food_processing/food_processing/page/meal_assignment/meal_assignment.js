@@ -930,20 +930,13 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
             Generated ${frappe.datetime.str_to_user(frappe.datetime.nowdate())}
         </div></div>`;
 
-        const wrapper = document.createElement('div');
-        wrapper.style.cssText = 'position:fixed; left:-9999px; top:0; width:750px;';
-        wrapper.innerHTML = html;
-        document.body.appendChild(wrapper);
-
         html2pdf().set({
             margin: [0.35, 0.35, 0.35, 0.35],
             filename: `Meal_Plan_${formatDate(currentMonday)}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true, logging: false },
             jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
-        }).from(wrapper).save().then(() => {
-            document.body.removeChild(wrapper);
-        });
+        }).from(html, 'string').save();
     }
 
     $(document).on('click', '#download-pdf', function () {
