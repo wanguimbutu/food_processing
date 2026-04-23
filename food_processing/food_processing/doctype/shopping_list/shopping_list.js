@@ -28,7 +28,7 @@ frappe.ui.form.on('Shopping List', {
             });
           }
     
-        if (frm.doc.docstatus === 1 && frm.doc.meal_plan) {
+        if (frm.doc.docstatus === 1) {
             frm.add_custom_button(__('Create Meal Issue'), function() {
                 open_meal_issue_dialog(frm);
             }, __('Actions'));
@@ -61,19 +61,18 @@ function open_meal_issue_dialog(frm) {
                 primary_action(values) {
                     d.hide();
                     frappe.call({
-                        method: 'food_processing.food_processing.doctype.shopping_list.shopping_list.create_daily_meal_issue',
+                        method: 'food_processing.food_processing.page.meal_assignment.meal_assignment.create_daily_ingredient_issue',
                         args: {
-                            meal_plan_name: frm.doc.meal_plan,
-                            meal_date: values.meal_date,
+                            issue_date: values.meal_date,
                             warehouse: values.warehouse
                         },
                         callback: res => {
-                            if (!res.exc) {
+                            if (res.message && res.message.stock_entry) {
                                 frappe.show_alert({
-                                    message: `Stock Entry ${res.message} created`,
+                                    message: __('Stock Entry {0} created', [res.message.stock_entry]),
                                     indicator: 'green'
                                 });
-                                frappe.set_route('Form', 'Stock Entry', res.message);
+                                frappe.set_route('Form', 'Stock Entry', res.message.stock_entry);
                             }
                         }
                     });

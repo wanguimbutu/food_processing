@@ -638,7 +638,8 @@ def get_meal_plan_tasks_with_diets(monday):
                 "subject": "Meal Plan Allocation",
                 "exp_start_date": ["<=", sunday],
                 "exp_end_date": [">=", monday],
-                "custom_is_meals_at_camp": 1
+                "custom_is_meals_at_camp": 1,
+                "status": ["!=", "Cancelled"]
             },
             fields=[
                 "name",
@@ -1072,6 +1073,97 @@ def get_meal_plan_status(monday):
         return {"exists": False, "status": None, "name": None}
     
     
+@frappe.whitelist()
+def create_daily_ingredient_issue(issue_date, warehouse=None):
+    import math
+    from frappe.utils import getdate
+
+    date = getdate(issue_date)
+
+    if not warehouse:
+        warehouse = frappe.db.get_single_value("Stock Settings", "default_warehouse")
+    if not warehouse:
+        frappe.throw("Please set a Default Warehouse in Stock Settings or choose one manually.")
+
+    meal_plans = frappe.get_all("Meal Plan", filters={
+        "start_date": ["<=", date],
+        "end_date": [">=", date],
+        "docstatus": ["!=", 2]
+    }, fields=["name", "total_individuals"])
+
+    if not meal_plans:
+        frappe.throw(f"No active meal plans found for {issue_date}.")
+
+    ingredient_totals = {}
+
+    for plan_info in meal_plans:
+        meal_plan = frappe.get_doc("Meal Plan", plan_info.name)
+        total_individuals = float(meal_plan.total_individuals or 1)
+
+        daily_entries = [e for e in meal_plan.meal_plan_entry if str(e.date) == str(date)]
+
+        for entry in daily_entries:
+            meal_id = entry.meal_id
+            if not meal_id or not frappe.db.exists("Meals", meal_id):
+                continue
+
+            meal_doc = frappe.get_doc("Meals", meal_id)
+            if not getattr(meal_doc, 'recipes', None):
+                continue
+
+            for recipe in meal_doc.recipes:
+                recipe_name = recipe.get('recipe_name')
+                if not recipe_name or not frappe.db.exists("Recipe", recipe_name):
+                    continue
+
+                recipe_doc = frappe.get_doc("Recipe", recipe_name)
+                if not getattr(recipe_doc, 'ingredients', None):
+                    continue
+
+                recipe_servings = float(getattr(recipe_doc, 'servings', None) or 1)
+
+                for ing in recipe_doc.ingredients:
+                    item_code = (ing.get('ingredient') or ing.get('item_code') or ing.get('item'))
+                    if not item_code:
+                        continue
+
+                    if not frappe.db.exists("Item", item_code):
+                        continue
+
+                    item_doc = frappe.get_doc("Item", item_code)
+                    if not item_doc.is_stock_item:
+                        continue
+
+                    base_qty = float(ing.get('qty', 0) or 0)
+                    if base_qty <= 0:
+                        continue
+
+                    qty_per_person = base_qty / recipe_servings
+                    total_qty = qty_per_person * total_individuals
+                    ingredient_totals[item_code] = ingredient_totals.get(item_code, 0) + total_qty
+
+    if not ingredient_totals:
+        frappe.throw(f"No ingredients found for any meals on {issue_date}.")
+
+    stock_entry = frappe.new_doc("Stock Entry")
+    stock_entry.purpose = "Material Issue"
+    stock_entry.stock_entry_type = "Material Issue"
+    if frappe.db.has_column("Stock Entry", "custom_meal_date"):
+        stock_entry.custom_meal_date = date
+
+    for item_code, total_qty in ingredient_totals.items():
+        rounded_qty = math.ceil(float(total_qty))
+        if rounded_qty > 0:
+            stock_entry.append("items", {
+                "item_code": item_code,
+                "qty": rounded_qty,
+                "s_warehouse": warehouse
+            })
+
+    stock_entry.insert(ignore_permissions=True)
+    return {"stock_entry": stock_entry.name}
+
+
 @frappe.whitelist()
 def get_all_meals_with_categories():
     meals = frappe.get_all("Meals", fields=["name", "meal_name", "creation"])

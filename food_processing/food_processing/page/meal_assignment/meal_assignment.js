@@ -20,9 +20,55 @@ frappe.pages['meal-assignment'].on_page_load = function(wrapper) {
         submitMealPlanForWeek(currentMonday); 
     }, 'check');
     page.add_action_item('Go to Shopping Lists', function() {
-    frappe.set_route('List', 'Shopping List');
+        frappe.set_route('List', 'Shopping List');
+    });
 
-});
+    page.add_action_item('Issue Daily Ingredients', function() {
+        frappe.db.get_single_value('Stock Settings', 'default_warehouse')
+            .then(function(default_warehouse) {
+                const d = new frappe.ui.Dialog({
+                    title: 'Issue Daily Meal Ingredients',
+                    fields: [
+                        {
+                            label: 'Issue Date',
+                            fieldname: 'issue_date',
+                            fieldtype: 'Date',
+                            reqd: 1,
+                            default: frappe.datetime.get_today()
+                        },
+                        {
+                            label: 'Source Warehouse',
+                            fieldname: 'warehouse',
+                            fieldtype: 'Link',
+                            options: 'Warehouse',
+                            reqd: 1,
+                            default: default_warehouse
+                        }
+                    ],
+                    primary_action_label: 'Create Issue',
+                    primary_action: function(values) {
+                        d.hide();
+                        frappe.call({
+                            method: 'food_processing.food_processing.page.meal_assignment.meal_assignment.create_daily_ingredient_issue',
+                            args: {
+                                issue_date: values.issue_date,
+                                warehouse: values.warehouse
+                            },
+                            callback: function(r) {
+                                if (r.message && r.message.stock_entry) {
+                                    frappe.show_alert({
+                                        message: __('Stock Entry {0} created', [r.message.stock_entry]),
+                                        indicator: 'green'
+                                    });
+                                    frappe.set_route('Form', 'Stock Entry', r.message.stock_entry);
+                                }
+                            }
+                        });
+                    }
+                });
+                d.show();
+            });
+    });
 
 
 
